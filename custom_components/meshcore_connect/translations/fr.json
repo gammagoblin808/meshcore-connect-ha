@@ -1,0 +1,238 @@
+{
+  "title": "MeshCore Connect",
+  "config": {
+    "step": {
+      "user": {
+        "menu_options": {
+          "serial": "USB / série",
+          "tcp": "TCP / Wi-Fi"
+        }
+      },
+      "serial": {
+        "title": "Compagnon série",
+        "data": {
+          "path": "Chemin du port série"
+        }
+      },
+      "tcp": {
+        "title": "Compagnon TCP",
+        "data": {
+          "host": "Hôte",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connexion impossible. Vérifiez le port, le code PIN et les autres applications utilisant cette interface.",
+      "invalid_key": "Utilisez les clés publiques complètes de 64 caractères hexadécimaux."
+    },
+    "abort": {
+      "already_configured": "Ce compagnon est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MeshCore Connect",
+        "menu_options": {
+          "allowed": "Contacts autorisés",
+          "contacts": "Contacts de l’appareil",
+          "channels": "Canaux de l’appareil",
+          "words": "Mots"
+        }
+      },
+      "allowed": {
+        "title": "Contacts autorisés",
+        "description": "Seuls les contacts sélectionnés peuvent déclencher les événements de mots. Une sélection vide bloque tous les expéditeurs. Les messages reçus restent visibles dans les activités.",
+        "data": {
+          "allowed_contacts": "Contacts autorisés"
+        }
+      },
+      "favorites": {
+        "title": "Favoris de l’appareil",
+        "description": "Les favoris sont lus et enregistrés sur le compagnon. Un favori n'est pas automatiquement autorisé à déclencher des événements de mots.",
+        "data": {
+          "contacts": "Favoris"
+        }
+      },
+      "contact_add": {
+        "title": "Ajouter un contact",
+        "data": {
+          "public_key": "Clé publique (64 caractères hexadécimaux)",
+          "name": "Nom",
+          "type": "Type d’appareil",
+          "favorite": "Favori"
+        }
+      },
+      "contact_remove": {
+        "title": "Supprimer un contact",
+        "description": "Supprime le contact du compagnon connecté et de la liste des contacts autorisés pour les mots.",
+        "data": {
+          "contact": "Contact",
+          "confirm": "Confirmer la suppression"
+        }
+      },
+      "channel_add": {
+        "title": "Ajouter un canal",
+        "description": "Choisir un emplacement libre. Laisser la clé vide pour un canal #hashtag. Un canal privé exige une clé partagée de 32 caractères hexadécimaux.",
+        "data": {
+          "slot": "Emplacement du canal",
+          "name": "Nom",
+          "secret": "Clé du canal (32 caractères hexadécimaux)"
+        }
+      },
+      "channel_remove": {
+        "title": "Supprimer un canal",
+        "description": "Efface le canal sélectionné sur le compagnon connecté.",
+        "data": {
+          "slot": "Emplacement du canal",
+          "confirm": "Confirmer la suppression"
+        }
+      },
+      "contacts": {
+        "title": "Contacts de l’appareil",
+        "menu_options": {
+          "contact_add": "Ajouter un contact",
+          "contact_remove": "Supprimer un contact",
+          "favorites": "Favoris de l’appareil"
+        }
+      },
+      "channels": {
+        "title": "Canaux de l’appareil",
+        "menu_options": {
+          "channel_add": "Ajouter un canal",
+          "channel_remove": "Supprimer un canal"
+        }
+      },
+      "words": {
+        "title": "Mots",
+        "menu_options": {
+          "word_add": "Ajouter un mot",
+          "word_edit": "Modifier un mot",
+          "word_remove": "Supprimer un mot"
+        }
+      },
+      "word_add": {
+        "title": "Ajouter un mot",
+        "description": "Chaque mot crée une entité événement. Seuls les messages exacts des contacts autorisés la déclenchent.",
+        "data": {
+          "word": "Mot"
+        }
+      },
+      "word_edit": {
+        "title": "Modifier un mot",
+        "data": {
+          "word": "Mot"
+        }
+      },
+      "word_remove": {
+        "title": "Supprimer un mot",
+        "data": {
+          "word": "Mot",
+          "confirm": "Confirmer la suppression"
+        }
+      }
+    },
+    "error": {
+      "invalid_key": "Utiliser des clés publiques complètes de 64 caractères hexadécimaux.",
+      "cannot_connect": "Compagnon indisponible. Vérifier la connexion et les autres applications.",
+      "device_error": "Modification impossible. Vérifier la connexion, les valeurs et l’espace disponible ; rouvrir ce menu pour actualiser son contenu.",
+      "confirm_required": "Confirmer la suppression pour continuer.",
+      "word_exists": "Ce mot existe déjà.",
+      "invalid_word": "Saisissez un mot ou une phrase (130 octets UTF-8 maximum), sans saut de ligne."
+    },
+    "abort": {
+      "device_error": "Modification impossible. Vérifier la connexion, les valeurs et l’espace disponible ; rouvrir ce menu pour actualiser son contenu."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_voltage": {
+        "name": "Tension de la batterie"
+      },
+      "favorites": {
+        "name": "Favoris"
+      },
+      "sent": {
+        "name": "Paquets envoyés"
+      },
+      "recv": {
+        "name": "Paquets reçus"
+      },
+      "recv_errors": {
+        "name": "Erreurs de réception"
+      },
+      "last_rssi": {
+        "name": "Dernier RSSI"
+      },
+      "last_snr": {
+        "name": "Dernier SNR"
+      },
+      "noise_floor": {
+        "name": "Bruit de fond"
+      },
+      "tx_air_secs": {
+        "name": "Temps d'émission"
+      },
+      "rx_air_secs": {
+        "name": "Temps de réception"
+      }
+    },
+    "button": {
+      "refresh_contacts": {
+        "name": "Actualiser les contacts et favoris"
+      }
+    },
+    "switch": {
+      "allowed_contact": {
+        "name": "Autorisé : {contact}"
+      }
+    },
+    "text": {
+      "new_word": {
+        "name": "Ajouter un mot"
+      },
+      "edit_word": {
+        "name": "Mot : {word}"
+      }
+    }
+  },
+  "selector": {
+    "contact_type": {
+      "options": {
+        "1": "Compagnon",
+        "2": "Répéteur",
+        "3": "Serveur de salon"
+      }
+    }
+  },
+  "services": {
+    "get_contacts": {
+      "name": "Lire les contacts",
+      "description": "Lire les contacts ou favoris directement depuis le compagnon connecté.",
+      "fields": {
+        "entry_id": {
+          "name": "Passerelle"
+        },
+        "favorites_only": {
+          "name": "Favoris uniquement"
+        }
+      }
+    },
+    "send_message": {
+      "name": "Envoyer un message",
+      "description": "Mettre un message privé en file d’attente pour un contact. Cela ne confirme pas sa livraison.",
+      "fields": {
+        "entry_id": {
+          "name": "Passerelle"
+        },
+        "public_key": {
+          "name": "Clé publique"
+        },
+        "text": {
+          "name": "Message"
+        }
+      }
+    }
+  }
+}

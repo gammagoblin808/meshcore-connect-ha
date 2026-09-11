@@ -1,0 +1,31 @@
+get_contacts:
+  name: Read contacts
+  description: Read contacts or favorites directly from the connected companion.
+  fields:
+    entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: meshcore_connect
+    favorites_only:
+      default: false
+      selector:
+        boolean:
+send_message:
+  name: Send message
+  description: Queue a private message for a contact. Queued does not mean delivered.
+  fields:
+    entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: meshcore_connect
+    public_key:
+      required: true
+      selector:
+        text:
+    text:
+      required: true
+      selector:
+        text:
+          multiline: true

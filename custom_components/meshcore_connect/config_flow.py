@@ -1,0 +1,245 @@
+import voluptuous as vol
+from uuid import uuid4
+from homeassistant import config_entries
+from homeassistant.core import callback
+from homeassistant.helpers import selector
+
+from .client import connect
+from .const import CONF_ALLOWED, CONF_WORDS, DOMAIN
+from .message import allowed_keys
+from .words import configured_words, validate_word, word_options
+
+
+class MeshCoreConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    VERSION = 2
+
+    async def async_step_user(self, user_input=None):
+        return self.async_show_menu(step_id="user", menu_options=["serial", "tcp"])
+
+    async def async_step_serial(self, user_input=None):
+        return await self._connection("serial", user_input, {
+            vol.Required("path", default="/dev/serial/by-id/"): str,
+        })
+
+    async def async_step_tcp(self, user_input=None):
+        return await self._connection("tcp", user_input, {
+            vol.Required("host"): str,
+            vol.Required("port", default=5000): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+        })
+
+    async def _connection(self, kind, user_input, schema):
+        errors = {}
+        if user_input is not None:
+            client = None
+            try:
+                data = {**user_input, "transport": kind, CONF_ALLOWED: []}
+                client = await connect(data)
+                key = client.self_info["public_key"]
+                await self.async_set_unique_id(key)
+                self._abort_if_unique_id_configured()
+                return self.async_create_entry(title="MeshCore Connect", data=data)
+            except (OSError, ConnectionError, TimeoutError, KeyError, ValueError):
+                errors["base"] = "cannot_connect"
+            finally:
+                if client:
+                    await client.disconnect()
+        return self.async_show_form(step_id=kind, data_schema=vol.Schema(schema), errors=errors)
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return MeshCoreOptionsFlow()
+
+
+class MeshCoreOptionsFlow(config_entries.OptionsFlow):
+    def __init__(self):
+        self._editing_word = None
+        self._channels = []
+
+    @property
+    def hub(self):
+        hub = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        if hub is None:
+            raise ConnectionError("Integration is not loaded")
+        return hub
+
+    def save(self, **changes):
+        options = word_options(self.config_entry, self.words())
+        options.update(changes)
+        return self.async_create_entry(title="", data=options)
+
+    def keys(self):
+        return self.config_entry.options.get(CONF_ALLOWED, self.config_entry.data.get(CONF_ALLOWED, []))
+
+    def words(self):
+        return configured_words(self.config_entry)
+
+    async def async_step_init(self, user_input=None):
+        return self.async_show_menu(step_id="init", menu_options=[
+            "allowed", "words", "contacts", "channels"])
+
+    async def async_step_contacts(self, user_input=None):
+        return self.async_show_menu(step_id="contacts", menu_options=[
+            "contact_add", "contact_remove", "favorites"])
+
+    async def async_step_channels(self, user_input=None):
+        return self.async_show_menu(step_id="channels", menu_options=["channel_add", "channel_remove"])
+
+    async def async_step_words(self, user_input=None):
+        self._editing_word = None
+        return self.async_show_menu(step_id="words", menu_options=[
+            "word_add", "word_edit", "word_remove"])
+
+    async def async_step_allowed(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            try:
+                keys = allowed_keys(",".join(user_input.get(CONF_ALLOWED, [])))
+                return self.save(**{CONF_ALLOWED: keys})
+            except ValueError:
+                errors[CONF_ALLOWED] = "invalid_key"
+        try:
+            contacts = await self.hub.refresh_contacts()
+        except (OSError, ConnectionError, ValueError):
+            contacts = []
+            errors["base"] = "cannot_connect"
+        labels = {c["public_key"]: f'{c["name"]} ({c["public_key"][:12]})' for c in contacts}
+        for key in self.keys():
+            labels.setdefault(key, key)
+        return self.async_show_form(step_id="allowed", data_schema=vol.Schema({
+            vol.Optional(CONF_ALLOWED, default=self.keys()): selection(labels, multiple=True),
+        }), errors=errors)
+
+    async def async_step_favorites(self, user_input=None):
+        errors = {}
+        try:
+            if user_input is not None:
+                await self.hub.set_favorites(user_input.get("contacts", []))
+                return self.save()
+            contacts = await self.hub.refresh_contacts()
+        except (OSError, ConnectionError, ValueError):
+            return self.async_abort(reason="device_error")
+        return self.async_show_form(step_id="favorites", data_schema=vol.Schema({
+            vol.Optional("contacts", default=[c["public_key"] for c in contacts if c["favorite"]]):
+                selection({c["public_key"]: f'{c["name"]} ({c["public_key"][:12]})' for c in contacts}, True),
+        }), errors=errors)
+
+    async def async_step_contact_add(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            try:
+                await self.hub.add_contact(user_input["public_key"], user_input["name"],
+                                           int(user_input["type"]), user_input.get("favorite", False))
+                return self.save()
+            except (OSError, ConnectionError, ValueError):
+                errors["base"] = "device_error"
+        schema = vol.Schema({
+            vol.Required("public_key"): str, vol.Required("name"): str,
+            vol.Required("type", default="1"): selector.SelectSelector({
+                "options": ["1", "2", "3"], "translation_key": "contact_type"}),
+            vol.Optional("favorite", default=False): bool,
+        })
+        return self.async_show_form(step_id="contact_add", data_schema=
+            self.add_suggested_values_to_schema(schema, user_input), errors=errors)
+
+    async def async_step_contact_remove(self, user_input=None):
+        errors = {}
+        try:
+            if user_input is not None:
+                if not user_input.get("confirm"):
+                    errors["confirm"] = "confirm_required"
+                else:
+                    key = user_input["contact"]
+                    await self.hub.remove_contact(key)
+                    return self.save(**{CONF_ALLOWED: [k for k in self.keys() if k != key]})
+            contacts = await self.hub.refresh_contacts()
+        except (OSError, ConnectionError, ValueError):
+            errors["base"] = "device_error"
+            contacts = []
+        return self.async_show_form(step_id="contact_remove", data_schema=vol.Schema({
+            vol.Required("contact"): selection({c["public_key"]: f'{c["name"]} ({c["public_key"][:12]})' for c in contacts}),
+            vol.Required("confirm", default=False): bool,
+        }), errors=errors)
+
+    async def async_step_channel_add(self, user_input=None):
+        errors = {}
+        try:
+            if user_input is not None:
+                await self.hub.add_channel(int(user_input["slot"]), user_input["name"], user_input.get("secret", ""))
+                return self.save()
+            self._channels = await self.hub.refresh_channels()
+        except (OSError, ConnectionError, ValueError):
+            errors["base"] = "device_error"
+        schema = vol.Schema({
+            vol.Required("slot"): selection({str(c["index"]): str(c["index"]) for c in self._channels if not c["name"]}),
+            vol.Required("name"): str,
+            vol.Optional("secret"): selector.TextSelector({"type": "password"}),
+        })
+        return self.async_show_form(step_id="channel_add", data_schema=
+            self.add_suggested_values_to_schema(schema, user_input), errors=errors)
+
+    async def async_step_channel_remove(self, user_input=None):
+        errors = {}
+        try:
+            if user_input is not None:
+                if not user_input.get("confirm"):
+                    errors["confirm"] = "confirm_required"
+                else:
+                    index = int(user_input["slot"])
+                    name = next(c["name"] for c in self._channels if c["index"] == index)
+                    await self.hub.remove_channel(index, name)
+                    return self.save()
+            self._channels = await self.hub.refresh_channels()
+        except (OSError, ConnectionError, ValueError, StopIteration):
+            errors["base"] = "device_error"
+        return self.async_show_form(step_id="channel_remove", data_schema=vol.Schema({
+            vol.Required("slot"): selection({str(c["index"]): f'{c["index"]}: {c["name"]}' for c in self._channels if c["name"]}),
+            vol.Required("confirm", default=False): bool,
+        }), errors=errors)
+
+    async def async_step_word_add(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            try:
+                word = validate_word(user_input["word"])
+                words = self.words()
+                if any(value == word and key != self._editing_word for key, value in words.items()):
+                    errors["word"] = "word_exists"
+                else:
+                    if self._editing_word and self._editing_word not in words:
+                        raise ValueError("Word no longer exists")
+                    words[self._editing_word or uuid4().hex] = word
+                    return self.save(**{CONF_WORDS: words})
+            except (ValueError, vol.Invalid):
+                errors["base"] = "invalid_word"
+        defaults = user_input or {"word": self.words().get(self._editing_word, "")}
+        return self.async_show_form(step_id="word_add", data_schema=
+            self.add_suggested_values_to_schema(vol.Schema({
+                vol.Required("word"): str,
+            }), defaults), errors=errors)
+
+    async def async_step_word_edit(self, user_input=None):
+        if user_input is not None and user_input["word"] in self.words():
+            self._editing_word = user_input["word"]
+            return await self.async_step_word_add()
+        return self.async_show_form(step_id="word_edit", data_schema=vol.Schema({
+            vol.Required("word"): selection(self.words()),
+        }))
+
+    async def async_step_word_remove(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            if user_input.get("confirm"):
+                words = self.words()
+                words.pop(user_input["word"], None)
+                return self.save(**{CONF_WORDS: words})
+            errors["confirm"] = "confirm_required"
+        return self.async_show_form(step_id="word_remove", data_schema=vol.Schema({
+            vol.Required("word"): selection(self.words()),
+            vol.Required("confirm", default=False): bool,
+        }), errors=errors)
+
+
+def selection(labels, multiple=False):
+    return selector.SelectSelector({"options": [{"value": key, "label": label} for key, label in labels.items()],
+                                    "multiple": multiple, "mode": "dropdown"})

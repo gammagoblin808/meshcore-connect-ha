@@ -1,0 +1,8 @@
+DOMAIN = "meshcore_connect"
+EVENT_MESSAGE = DOMAIN + "_message"
+EVENT_SOS = DOMAIN + "_sos"
+CONF_ALLOWED = "allowed_contacts"
+CONF_ACTIONS = "word_actions"
+CONF_WORDS = "words"
+EVENT_WORD = DOMAIN + "_word"
+EVENT_RECEIVED = DOMAIN + "_received"

@@ -1,0 +1,238 @@
+{
+  "title": "MeshCore Connect",
+  "config": {
+    "step": {
+      "user": {
+        "menu_options": {
+          "serial": "USB / serial",
+          "tcp": "TCP / Wi-Fi"
+        }
+      },
+      "serial": {
+        "title": "Serial companion",
+        "data": {
+          "path": "Serial device path"
+        }
+      },
+      "tcp": {
+        "title": "TCP companion",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect. Check transport, device PIN and whether another app is using this interface.",
+      "invalid_key": "Use complete 64-character hexadecimal public keys."
+    },
+    "abort": {
+      "already_configured": "This companion is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MeshCore Connect",
+        "menu_options": {
+          "allowed": "Allowed contacts",
+          "contacts": "Device contacts",
+          "channels": "Device channels",
+          "words": "Words"
+        }
+      },
+      "allowed": {
+        "title": "Allowed contacts",
+        "description": "Only selected contacts may trigger word events. An empty selection blocks all senders. Received messages remain visible in Activities.",
+        "data": {
+          "allowed_contacts": "Allowed contacts"
+        }
+      },
+      "favorites": {
+        "title": "Device favorites",
+        "description": "Favorites are read from and written to the companion. Favoriting a contact does not authorize word events.",
+        "data": {
+          "contacts": "Favorites"
+        }
+      },
+      "contact_add": {
+        "title": "Add contact",
+        "data": {
+          "public_key": "Public key (64 hexadecimal characters)",
+          "name": "Name",
+          "type": "Device type",
+          "favorite": "Favorite"
+        }
+      },
+      "contact_remove": {
+        "title": "Remove contact",
+        "description": "This removes the contact from the connected companion and the word allowlist.",
+        "data": {
+          "contact": "Contact",
+          "confirm": "Confirm removal"
+        }
+      },
+      "channel_add": {
+        "title": "Add channel",
+        "description": "Choose an empty slot. For a #hashtag channel leave the key empty. Private channels require the shared 32-character hexadecimal key.",
+        "data": {
+          "slot": "Channel slot",
+          "name": "Name",
+          "secret": "Channel key (32 hexadecimal characters)"
+        }
+      },
+      "channel_remove": {
+        "title": "Remove channel",
+        "description": "This clears the selected channel on the connected companion.",
+        "data": {
+          "slot": "Channel slot",
+          "confirm": "Confirm removal"
+        }
+      },
+      "contacts": {
+        "title": "Device contacts",
+        "menu_options": {
+          "contact_add": "Add contact",
+          "contact_remove": "Remove contact",
+          "favorites": "Device favorites"
+        }
+      },
+      "channels": {
+        "title": "Device channels",
+        "menu_options": {
+          "channel_add": "Add channel",
+          "channel_remove": "Remove channel"
+        }
+      },
+      "words": {
+        "title": "Words",
+        "menu_options": {
+          "word_add": "Add word",
+          "word_edit": "Edit word",
+          "word_remove": "Remove word"
+        }
+      },
+      "word_add": {
+        "title": "Add word",
+        "description": "Each word creates an event entity. Only exact messages from allowed contacts trigger it.",
+        "data": {
+          "word": "Word"
+        }
+      },
+      "word_edit": {
+        "title": "Edit word",
+        "data": {
+          "word": "Word"
+        }
+      },
+      "word_remove": {
+        "title": "Remove word",
+        "data": {
+          "word": "Word",
+          "confirm": "Confirm removal"
+        }
+      }
+    },
+    "error": {
+      "invalid_key": "Use complete 64-character hexadecimal public keys.",
+      "cannot_connect": "Companion unavailable. Check the connection and whether another app is using it.",
+      "device_error": "The device could not apply the change. Check the connection, values and available storage; reopen this menu to refresh its contents.",
+      "confirm_required": "Confirm removal to continue.",
+      "word_exists": "This word already exists.",
+      "invalid_word": "Enter a nonempty word or phrase (maximum 130 UTF-8 bytes), without line breaks."
+    },
+    "abort": {
+      "device_error": "The device could not apply the change. Check the connection, values and available storage; reopen this menu to refresh its contents."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_voltage": {
+        "name": "Battery voltage"
+      },
+      "favorites": {
+        "name": "Favorites"
+      },
+      "sent": {
+        "name": "Packets sent"
+      },
+      "recv": {
+        "name": "Packets received"
+      },
+      "recv_errors": {
+        "name": "Receive errors"
+      },
+      "last_rssi": {
+        "name": "Last RSSI"
+      },
+      "last_snr": {
+        "name": "Last SNR"
+      },
+      "noise_floor": {
+        "name": "Noise floor"
+      },
+      "tx_air_secs": {
+        "name": "Transmit airtime"
+      },
+      "rx_air_secs": {
+        "name": "Receive airtime"
+      }
+    },
+    "button": {
+      "refresh_contacts": {
+        "name": "Refresh contacts and favorites"
+      }
+    },
+    "switch": {
+      "allowed_contact": {
+        "name": "Allowed: {contact}"
+      }
+    },
+    "text": {
+      "new_word": {
+        "name": "Add word"
+      },
+      "edit_word": {
+        "name": "Word: {word}"
+      }
+    }
+  },
+  "selector": {
+    "contact_type": {
+      "options": {
+        "1": "Companion",
+        "2": "Repeater",
+        "3": "Room server"
+      }
+    }
+  },
+  "services": {
+    "get_contacts": {
+      "name": "Read contacts",
+      "description": "Read contacts or favorites directly from the connected companion.",
+      "fields": {
+        "entry_id": {
+          "name": "Gateway"
+        },
+        "favorites_only": {
+          "name": "Favorites only"
+        }
+      }
+    },
+    "send_message": {
+      "name": "Send message",
+      "description": "Queue a private message to a device contact. Queued does not mean delivered.",
+      "fields": {
+        "entry_id": {
+          "name": "Gateway"
+        },
+        "public_key": {
+          "name": "Public key"
+        },
+        "text": {
+          "name": "Message"
+        }
+      }
+    }
+  }
+}

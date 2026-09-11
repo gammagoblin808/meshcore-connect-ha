@@ -1,0 +1,238 @@
+{
+  "title": "MeshCore Connect",
+  "config": {
+    "step": {
+      "user": {
+        "menu_options": {
+          "serial": "USB / seriell",
+          "tcp": "TCP / WLAN"
+        }
+      },
+      "serial": {
+        "title": "Serielles Begleitgerät",
+        "data": {
+          "path": "Serieller Gerätepfad"
+        }
+      },
+      "tcp": {
+        "title": "TCP-Begleitgerät",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen. Schnittstelle, Geräte-PIN und Zugriff durch andere Apps prüfen.",
+      "invalid_key": "Vollständige öffentliche Schlüssel mit 64 Hexadezimalzeichen verwenden."
+    },
+    "abort": {
+      "already_configured": "Dieses Begleitgerät ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MeshCore Connect",
+        "menu_options": {
+          "allowed": "Erlaubte Kontakte",
+          "contacts": "Gerätekontakte",
+          "channels": "Gerätekanäle",
+          "words": "Wörter"
+        }
+      },
+      "allowed": {
+        "title": "Erlaubte Kontakte",
+        "description": "Nur ausgewählte Kontakte dürfen Wort-Ereignisse auslösen. Eine leere Auswahl sperrt alle Absender. Empfangene Nachrichten bleiben in den Aktivitäten sichtbar.",
+        "data": {
+          "allowed_contacts": "Erlaubte Kontakte"
+        }
+      },
+      "favorites": {
+        "title": "Gerätefavoriten",
+        "description": "Favoriten werden vom Companion gelesen und auf ihm gespeichert. Ein Favorit erhält dadurch keine Freigabe für Wort-Ereignisse.",
+        "data": {
+          "contacts": "Favoriten"
+        }
+      },
+      "contact_add": {
+        "title": "Kontakt hinzufügen",
+        "data": {
+          "public_key": "Öffentlicher Schlüssel (64 Hexadezimalzeichen)",
+          "name": "Name",
+          "type": "Gerätetyp",
+          "favorite": "Favorit"
+        }
+      },
+      "contact_remove": {
+        "title": "Kontakt entfernen",
+        "description": "Entfernt den Kontakt vom angeschlossenen Companion und aus der Freigabeliste für Wort-Ereignisse.",
+        "data": {
+          "contact": "Kontakt",
+          "confirm": "Entfernen bestätigen"
+        }
+      },
+      "channel_add": {
+        "title": "Kanal hinzufügen",
+        "description": "Einen freien Speicherplatz wählen. Bei einem #Hashtag-Kanal den Schlüssel leer lassen. Private Kanäle benötigen den gemeinsamen Schlüssel mit 32 Hexadezimalzeichen.",
+        "data": {
+          "slot": "Kanalspeicherplatz",
+          "name": "Name",
+          "secret": "Kanalschlüssel (32 Hexadezimalzeichen)"
+        }
+      },
+      "channel_remove": {
+        "title": "Kanal entfernen",
+        "description": "Löscht den ausgewählten Kanal auf dem angeschlossenen Companion.",
+        "data": {
+          "slot": "Kanalspeicherplatz",
+          "confirm": "Entfernen bestätigen"
+        }
+      },
+      "contacts": {
+        "title": "Gerätekontakte",
+        "menu_options": {
+          "contact_add": "Kontakt hinzufügen",
+          "contact_remove": "Kontakt entfernen",
+          "favorites": "Gerätefavoriten"
+        }
+      },
+      "channels": {
+        "title": "Gerätekanäle",
+        "menu_options": {
+          "channel_add": "Kanal hinzufügen",
+          "channel_remove": "Kanal entfernen"
+        }
+      },
+      "words": {
+        "title": "Wörter",
+        "menu_options": {
+          "word_add": "Wort hinzufügen",
+          "word_edit": "Wort bearbeiten",
+          "word_remove": "Wort entfernen"
+        }
+      },
+      "word_add": {
+        "title": "Wort hinzufügen",
+        "description": "Jedes Wort erzeugt eine Ereignis-Entität. Nur exakte Nachrichten erlaubter Kontakte lösen sie aus.",
+        "data": {
+          "word": "Wort"
+        }
+      },
+      "word_edit": {
+        "title": "Wort bearbeiten",
+        "data": {
+          "word": "Wort"
+        }
+      },
+      "word_remove": {
+        "title": "Wort entfernen",
+        "data": {
+          "word": "Wort",
+          "confirm": "Entfernen bestätigen"
+        }
+      }
+    },
+    "error": {
+      "invalid_key": "Vollständige öffentliche Schlüssel mit 64 Hexadezimalzeichen verwenden.",
+      "cannot_connect": "Companion nicht verfügbar. Verbindung und Zugriff durch andere Apps prüfen.",
+      "device_error": "Die Änderung konnte nicht angewendet werden. Verbindung, Eingaben und freien Speicher prüfen; dieses Menü zum Aktualisieren erneut öffnen.",
+      "confirm_required": "Entfernen bestätigen, um fortzufahren.",
+      "word_exists": "Dieses Wort existiert bereits.",
+      "invalid_word": "Ein Wort oder eine Wortfolge eingeben (höchstens 130 UTF-8-Bytes), ohne Zeilenumbrüche."
+    },
+    "abort": {
+      "device_error": "Die Änderung konnte nicht angewendet werden. Verbindung, Eingaben und freien Speicher prüfen; dieses Menü zum Aktualisieren erneut öffnen."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_voltage": {
+        "name": "Batteriespannung"
+      },
+      "favorites": {
+        "name": "Favoriten"
+      },
+      "sent": {
+        "name": "Gesendete Pakete"
+      },
+      "recv": {
+        "name": "Empfangene Pakete"
+      },
+      "recv_errors": {
+        "name": "Empfangsfehler"
+      },
+      "last_rssi": {
+        "name": "Letzter RSSI"
+      },
+      "last_snr": {
+        "name": "Letzter SNR"
+      },
+      "noise_floor": {
+        "name": "Rauschpegel"
+      },
+      "tx_air_secs": {
+        "name": "Sendezeit"
+      },
+      "rx_air_secs": {
+        "name": "Empfangszeit"
+      }
+    },
+    "button": {
+      "refresh_contacts": {
+        "name": "Kontakte und Favoriten aktualisieren"
+      }
+    },
+    "switch": {
+      "allowed_contact": {
+        "name": "Erlaubt: {contact}"
+      }
+    },
+    "text": {
+      "new_word": {
+        "name": "Wort hinzufügen"
+      },
+      "edit_word": {
+        "name": "Wort: {word}"
+      }
+    }
+  },
+  "selector": {
+    "contact_type": {
+      "options": {
+        "1": "Begleitgerät",
+        "2": "Repeater",
+        "3": "Raumserver"
+      }
+    }
+  },
+  "services": {
+    "get_contacts": {
+      "name": "Kontakte abrufen",
+      "description": "Kontakte oder Favoriten direkt vom angeschlossenen Companion lesen.",
+      "fields": {
+        "entry_id": {
+          "name": "Gateway"
+        },
+        "favorites_only": {
+          "name": "Nur Favoriten"
+        }
+      }
+    },
+    "send_message": {
+      "name": "Nachricht senden",
+      "description": "Private Nachricht an einen Gerätekontakt zum Versand übergeben. Dies bestätigt noch keine Zustellung.",
+      "fields": {
+        "entry_id": {
+          "name": "Gateway"
+        },
+        "public_key": {
+          "name": "Öffentlicher Schlüssel"
+        },
+        "text": {
+          "name": "Nachricht"
+        }
+      }
+    }
+  }
+}
