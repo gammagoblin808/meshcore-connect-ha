@@ -199,11 +199,14 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
                 self.state[field] = values.get(field)
         self.stats_at = time.monotonic()
 
-    async def send_message(self, key, text, *, favorite_only=False):
+    async def send_message(self, key, text, *, favorite_only=False, timestamp=None,
+                           attempt=0, permitted=None):
         key = public_key(key)
         if not text or len(text.encode("utf-8")) > 130 or "\0" in text:
             raise ValueError("Message must contain 1 to 130 UTF-8 bytes, without NUL")
         async with self.lock:
+            if permitted is not None and not permitted():
+                return None
             if not self.client or not self.client.is_connected or self.stopping:
                 raise ConnectionError("Companion is disconnected")
             contact = self.contact_snapshot().get(key)
@@ -211,4 +214,5 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
                 raise ValueError("Recipient is not in the companion contact list")
             if favorite_only and not contact.get("flags", 0) & 1:
                 raise ValueError("Recipient is no longer a companion favorite")
-            checked(await self.client.commands.send_msg(contact, text), EventType.MSG_SENT)
+            options = {} if timestamp is None else {"timestamp": timestamp, "attempt": attempt}
+            return checked(await self.client.commands.send_msg(contact, text, **options), EventType.MSG_SENT)

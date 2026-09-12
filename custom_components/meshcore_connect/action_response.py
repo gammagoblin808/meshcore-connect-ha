@@ -13,6 +13,7 @@ from homeassistant.helpers.script_variables import ScriptRunVariables
 
 from .const import CONF_ACTION_RESPONSES, DOMAIN, EVENT_RESPONSE
 from .automation_response import AutomationResponses
+from .reply_delivery import send_reply
 
 LOGGER = logging.getLogger(__name__)
 REQUEST_TTL = 300
@@ -90,14 +91,16 @@ class ActionResponses:
         }, context=Context(parent_id=request.get("context_id")))
 
     async def _reply(self, request, status):
-        if (not self.enabled or not request.get("auto_reply") or self.hub.stopping
-                or request["public_key"] not in self.hub.allowed):
+        def permitted():
+            return (self.enabled and request.get("auto_reply") and not self.hub.stopping
+                    and request["public_key"] in self.hub.allowed)
+
+        if not permitted():
             return False
         try:
-            await self.hub.send_message(request["public_key"], response_text(
-                status, request["sender_timestamp"], request["text"]))
-            self.activity(request, "queued", status)
-            return True
+            return await send_reply(self.hub, request["public_key"], response_text(
+                status, request["sender_timestamp"], request["text"]), permitted,
+                lambda phase: self.activity(request, phase, status), confirm=status != "RUN")
         except Exception:
             self.activity(request, "failed", status)
             LOGGER.warning("Could not send Home Assistant action result", exc_info=True)

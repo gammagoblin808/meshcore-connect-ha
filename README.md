@@ -202,10 +202,23 @@ message queue can be shown, not undecryptable radio traffic.
 
 When action confirmations are enabled, Activity also records the incoming
 confirmation request, the start of the correlated automation, and whether its
-reply was accepted by the companion or failed. An accepted reply is **not** a
-confirmed delivery over the mesh. These entries help distinguish a missing
-automation correlation from a local send failure or a radio return-path issue.
-The integration never repeats an action because its reply failed.
+reply was accepted by the companion or failed. Final replies wait for a matching
+MeshCore ACK and make at most three attempts using the same message timestamp.
+After two unconfirmed attempts, a saved outgoing contact path is reset before
+the final attempt so the encrypted private reply can use flood routing.
+ACK waits follow the companion's suggested timeout, bounded to 2-30 seconds
+per attempt. The companion receive loop remains available during these waits.
+
+An accepted reply is **not** a confirmed delivery over the mesh. Activity only
+reports confirmed receipt when the recipient radio's matching ACK is received;
+it does not claim that the app displayed the message or that a person read it.
+Missing ACKs are reported as unconfirmed, not as proof of delivery failure.
+These entries distinguish a missing automation correlation from a local send
+failure or a radio return-path issue. The integration never repeats an action
+because its reply failed. Disabling confirmations prevents further reply attempts.
+The service result `reply_queued` continues to mean local radio acceptance, not
+confirmed delivery. Progress notices (`HA RUN`) are sent once without waiting
+for a radio ACK, so a missing reply cannot delay execution of the action.
 
 Message text is stored in Home Assistant's recorder/logbook history, subject to
 its retention and exclusion settings. Anyone with access to that history can
