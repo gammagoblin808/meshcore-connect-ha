@@ -50,5 +50,9 @@ class WordEvent(CompanionEntity, EventEntity):
                 or data.get("public_key") not in hub.allowed
                 or data.get("public_key") not in hub.contact_snapshot()):
             return
-        self._trigger_event("received", {k: data[k] for k in ("public_key", "text", "sender_timestamp")})
+        self.async_set_context(event.context)
+        self._trigger_event("received", {
+            **{k: data[k] for k in ("public_key", "text", "sender_timestamp")},
+            "entry_id": self.entry_id, "request_id": data.get("request_id"),
+        })
         self.async_write_ha_state()

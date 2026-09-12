@@ -5,10 +5,12 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 
 from .entity import CompanionEntity
+from .const import CONF_ACTION_RESPONSES
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
     known = set()
+    async_add_entities([ActionResponseSwitch(entry.runtime_data, entry)])
 
     @callback
     def add_contacts():
@@ -19,6 +21,36 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     add_contacts()
     entry.async_on_unload(entry.runtime_data.async_add_listener(add_contacts))
+
+
+class ActionResponseSwitch(CompanionEntity, SwitchEntity):
+    _attr_translation_key = "action_responses"
+    _attr_icon = "mdi:message-check-outline"
+
+    def __init__(self, hub, entry):
+        super().__init__(hub, entry, "action_responses")
+
+    @property
+    def available(self):
+        return True
+
+    @property
+    def is_on(self):
+        return self.coordinator.action_responses.enabled
+
+    async def _set_enabled(self, enabled):
+        hub = self.coordinator
+        hub.hass.config_entries.async_update_entry(
+            hub.entry, options={**hub.entry.options, CONF_ACTION_RESPONSES: enabled})
+        if not enabled:
+            hub.action_responses.observer.disable()
+        hub.options_updated()
+
+    async def async_turn_on(self, **kwargs):
+        await self._set_enabled(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._set_enabled(False)
 
 
 class AllowedContact(CompanionEntity, SwitchEntity):

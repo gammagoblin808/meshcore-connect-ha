@@ -1,3 +1,21 @@
+execute_action:
+  name: Execute action and reply
+  description: Run local actions for an authorized word request, then send the result to the original sender.
+  fields:
+    entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: meshcore_connect
+    request_id:
+      required: true
+      selector:
+        text:
+    automation_entity:
+      required: true
+      selector:
+        entity:
+          domain: automation
 get_contacts:
   name: Read contacts
   description: Read contacts or favorites directly from the connected companion.

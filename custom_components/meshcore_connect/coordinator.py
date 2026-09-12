@@ -6,6 +6,7 @@ import time
 from uuid import uuid4
 
 from meshcore import EventType
+from homeassistant.core import Context
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .client import checked, connect
@@ -13,6 +14,7 @@ from .const import CONF_ALLOWED, DOMAIN, EVENT_MESSAGE, EVENT_SOS, EVENT_WORD, E
 from .management import CompanionManagement
 from .message import public_key, trusted_message
 from .words import configured_words, validate_word, word_options
+from .action_response import ActionResponses
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +37,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         self.stats_at = 0
         self.received_seen = OrderedDict()
         self.messages_ready = False
+        self.action_responses = ActionResponses(self)
 
     @property
     def words(self):
@@ -78,6 +81,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
 
     async def close(self):
         self.stopping = True
+        await self.action_responses.close()
         async with self.lock:
             await self._disconnect()
 
@@ -150,12 +154,15 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         if len(self.seen) > 256:
             self.seen.popitem(last=False)
         message["entry_id"] = self.entry.entry_id
-        self.hass.bus.async_fire(EVENT_MESSAGE, message)
+        context = Context()
+        request_id = self.action_responses.register(message, context_id=context.id)
+        self.hass.bus.async_fire(EVENT_MESSAGE, message, context=context)
         if message["sos"]:
-            self.hass.bus.async_fire(EVENT_SOS, message.copy())
+            self.hass.bus.async_fire(EVENT_SOS, message.copy(), context=context)
         for slot, word in self.words.items():
             if word == message["text"]:
-                self.hass.bus.async_fire(EVENT_WORD, {**message, "word_id": slot})
+                self.hass.bus.async_fire(EVENT_WORD, {
+                    **message, "word_id": slot, "request_id": request_id}, context=context)
 
     def _received_message(self, payload, channel=False):
         text = payload.get("text")

@@ -6,6 +6,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN
+from .action_response import automation_actions
 from .coordinator import MeshCoreCoordinator
 from .words import configured_words, word_options
 
@@ -66,6 +67,19 @@ async def async_setup_entry(hass, entry):
                 vol.Required("entry_id"): cv.string,
                 vol.Optional("favorites_only", default=False): cv.boolean,
             }))
+        async def execute_action(call):
+            selected = hass.data.get(DOMAIN, {}).get(call.data["entry_id"])
+            if selected is None:
+                raise HomeAssistantError("MeshCore Connect entry is not loaded")
+            return await selected.action_responses.execute(
+                call.data["request_id"],
+                automation_actions(hass, call.data["automation_entity"]), call.context)
+        hass.services.async_register(DOMAIN, "execute_action", execute_action,
+            supports_response=SupportsResponse.OPTIONAL, schema=vol.Schema({
+                vol.Required("entry_id"): cv.string,
+                vol.Required("request_id"): cv.string,
+                vol.Required("automation_entity"): cv.entity_id,
+            }))
     return True
 
 
@@ -81,4 +95,5 @@ async def async_unload_entry(hass, entry):
     if not hass.data[DOMAIN]:
         hass.services.async_remove(DOMAIN, "send_message")
         hass.services.async_remove(DOMAIN, "get_contacts")
+        hass.services.async_remove(DOMAIN, "execute_action")
     return True

@@ -1,0 +1,47 @@
+blueprint:
+  name: MeshCore Connect - action with radio response
+  description: Run Home Assistant actions for an allowed private word message and reply to its sender after completion.
+  domain: automation
+  source_url: https://github.com/gammagoblin808/meshcore-connect-ha/blob/main/blueprints/automation/meshcore_connect/word_action.yaml
+  input:
+    word_entity:
+      name: MeshCore word
+      selector:
+        entity:
+          integration: meshcore_connect
+          domain: event
+    actions:
+      name: Actions
+      description: Wait for any required physical device state here before the success response.
+      selector:
+        action:
+variables:
+  meshcore_sender: "{{ trigger.to_state.attributes.get('public_key', '') if trigger.to_state is not none else '' }}"
+  meshcore_word: "{{ trigger.to_state.attributes.get('text', '') if trigger.to_state is not none else '' }}"
+  meshcore_request_id: "{{ trigger.to_state.attributes.get('request_id', '') if trigger.to_state is not none else '' }}"
+triggers:
+  - trigger: state
+    entity_id: !input word_entity
+conditions:
+  - condition: template
+    value_template: >-
+      {{ trigger.to_state is not none
+         and trigger.to_state.state not in ['unknown', 'unavailable']
+         and trigger.to_state.attributes.get('event_type') == 'received'
+         and trigger.to_state.attributes.get('request_id') is not none
+         and (trigger.from_state is none or
+              trigger.from_state.attributes.get('request_id') !=
+              trigger.to_state.attributes.get('request_id')) }}
+actions:
+  - action: meshcore_connect.execute_action
+    data:
+      entry_id: '{{ trigger.to_state.attributes.entry_id }}'
+      request_id: '{{ trigger.to_state.attributes.request_id }}'
+      automation_entity: '{{ this.entity_id }}'
+  # Executed by the response service, preserving deferred wait/repeat templates.
+  # Disabled here to prevent the outer automation from executing it a second time.
+  - alias: meshcore_connect_action_sequence
+    enabled: false
+    sequence: !input actions
+mode: parallel
+max: 10

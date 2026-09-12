@@ -96,7 +96,8 @@ Each exact private message from an allowed contact updates that word's event
 entity with event type `received`, the sender's public key and sender timestamp.
 Repeated messages produce new events. Matching is case-sensitive; spaces are
 significant. Use the event entity as the trigger in a Home Assistant automation.
-There is no action editor or automatic action execution inside the integration.
+Receiving a word alone does not execute an action. Use a normal HA automation,
+or the optional response blueprint below.
 
 Updating from version 1.1 preserves configured words and allowed contacts, but
 removes the old per-word action definitions. Recreate the desired behavior in
@@ -109,6 +110,81 @@ the gateway. Only an explicitly allowed contact can trigger word entities.
 Unknown contacts, ambiguous prefixes, channel messages and remote command replies
 cannot trigger word entities. No separate HA token needs to be stored
 on the portable device.
+
+### Actions With a Radio Response
+
+Since **26.09.23**, Linux and Android can execute saved HA actions directly from
+the **Home Assistant** view and distinguish mesh delivery from HA execution.
+The existing action buttons on supported companions send the same word messages.
+
+1. Update the integration and restart Home Assistant.
+2. Configure the word and allow the sending contact as described above.
+3. On the **MeshCore Connect device page**, under **Controls**, enable
+   **Send action confirmations** (German: **Aktionsbestätigungen senden**).
+   This per-gateway switch defaults to off and is retained across restarts.
+4. Keep your existing automation for the word's event entity, or create a normal
+   automation using that entity. No blueprint or reply action is required.
+5. In the Connect app, select the gateway as the HA contact, save the matching
+   **Word / message**, then press the action's play button.
+
+The switch only controls replies. It does not enable, disable, change or repeat
+your automations. Turning it off during execution suppresses the pending reply
+without stopping the action; turning it back on does not acknowledge old runs.
+
+The integration follows HA's context from an allowed private message through its
+word event entity into directly triggered automations. Compatibility event
+automations for `meshcore_connect_message`, `meshcore_connect_word` and SOS are
+also supported. Merely listing an automation under a device's related items is
+not sufficient: that particular run must have been triggered by the message.
+Manual runs, unrelated triggers and rejected senders produce no radio reply.
+
+HA's execution trace is observed locally; the integration never rewrites an
+automation or executes its actions again. If multiple automations start for one
+message, their results are combined and one reply is sent after all finish.
+Automations skipped by their conditions or execution mode do not count as
+executed. A message that starts no automation receives no execution confirmation.
+
+The private reply goes to the **original sender**, not a fixed notification
+contact. `HA OK <timestamp>: <word>` reports completed execution. `HA ERR` reports
+an execution error; `HA UNKNOWN` reports a stopped or aborted action sequence,
+missing execution evidence or the five-minute observation limit. Automations
+continue running even after this observation limit. App status matching
+checks the gateway contact, original message timestamp and exact word, so an
+older response does not confirm a newer action. Replies are also ordinary
+private messages readable on existing Connect firmware.
+
+Automations created in HA's UI normally have an ID and saved traces. YAML-defined
+automations also need a unique `id` and at least one stored trace. Disabled traces
+or an unsupported HA trace format must never be interpreted as successful
+execution. Trace-store layouts from HA 2025.3 and the newer split run buckets
+are supported; automated runtime tests currently use HA 2025.3.4.
+
+**Executed means the HA action sequence completed without a reported error.**
+For confirmation that a physical device actually changed state, add an explicit
+wait for that state to the sequence, with a timeout that aborts on failure.
+Nonblocking calls such as `script.turn_on` and actions with `continue_on_error`
+cannot by themselves provide that guarantee. See
+[Home Assistant script actions](https://www.home-assistant.io/docs/scripts/).
+
+Mesh delivery acknowledgement is not action completion. Replies are best-effort
+radio messages; if none arrives, the apps show **Result unknown** after six
+minutes. Failed replies never automatically repeat the action. A duplicate run
+for the same registered request is rejected, and permissions are checked again
+before execution. Request tracking is bounded and in memory, not a persistent
+exactly-once guarantee across HA restarts. On integration shutdown observation
+is stopped without cancelling your existing automations or sending false success.
+
+The optional earlier response blueprint remains compatible, but is no longer
+required. Its replies also respect the device switch; it does not receive a
+second reply from the automatic observer. Do not add a blueprint automation
+alongside an existing automation for the same action, as both would execute.
+The blueprint calls `meshcore_connect.execute_action` with `entry_id`,
+`request_id` from the word event and its `automation_entity`. The service reads
+the blueprint's unrendered action sequence, preserving wait and repeat templates
+until their execution. Requests expire after five minutes.
+Available action variables are `meshcore_sender`, `meshcore_word`
+and `meshcore_request_id`. Incoming text is only matched against configured
+words; it never chooses arbitrary HA services or targets.
 
 ### Radio Values and Activities
 
@@ -193,7 +269,8 @@ not survive a Home Assistant restart; queued messages may be delivered later.
 Automations that control sensitive equipment must provide their own freshness and
 safety checks. A message timestamp is supplied by the sender, not a trusted clock.
 
-Current scope: private word event entities, editable HA permissions and words,
+Current scope: private word event entities, device-switch-controlled automatic
+execution replies, optional action execution with private radio responses, editable HA permissions and words,
 received-message activities, SOS events, outgoing messages, gateway battery and
 radio statistics, contacts, favorites and local channel administration.
 No remote firmware flashing, authorized channel-word triggers, BLE
@@ -214,6 +291,6 @@ which contains the tests. The GitHub HACS mirror contains only installation file
 
 ```sh
 python3.13 -m venv /tmp/connect-ha-tests
-/tmp/connect-ha-tests/bin/pip install -r integrations/home_assistant/requirements-test.txt
-/tmp/connect-ha-tests/bin/python -m pytest -q integrations/home_assistant/tests
+/tmp/connect-ha-tests/bin/pip install -r home-assistant/requirements-test.txt
+/tmp/connect-ha-tests/bin/python -m pytest -q home-assistant/tests
 ```

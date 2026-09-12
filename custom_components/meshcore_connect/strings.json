@@ -186,6 +186,9 @@
     "switch": {
       "allowed_contact": {
         "name": "Allowed: {contact}"
+      },
+      "action_responses": {
+        "name": "Send action confirmations"
       }
     },
     "text": {
@@ -207,6 +210,21 @@
     }
   },
   "services": {
+    "execute_action": {
+      "name": "Execute action and reply",
+      "description": "Run local actions for an authorized word request and reply to the original sender.",
+      "fields": {
+        "entry_id": {
+          "name": "Gateway"
+        },
+        "request_id": {
+          "name": "Request"
+        },
+        "automation_entity": {
+          "name": "Response automation"
+        }
+      }
+    },
     "get_contacts": {
       "name": "Read contacts",
       "description": "Read contacts or favorites directly from the connected companion.",

@@ -186,6 +186,9 @@
     "switch": {
       "allowed_contact": {
         "name": "Autorisé : {contact}"
+      },
+      "action_responses": {
+        "name": "Envoyer les confirmations d’action"
       }
     },
     "text": {
@@ -207,6 +210,21 @@
     }
   },
   "services": {
+    "execute_action": {
+      "name": "Exécuter et répondre",
+      "description": "Exécuter les actions locales pour une demande autorisée et répondre à son expéditeur.",
+      "fields": {
+        "entry_id": {
+          "name": "Gateway"
+        },
+        "request_id": {
+          "name": "Demande"
+        },
+        "automation_entity": {
+          "name": "Automatisation de réponse"
+        }
+      }
+    },
     "get_contacts": {
       "name": "Lire les contacts",
       "description": "Lire les contacts ou favoris directement depuis le compagnon connecté.",
