@@ -5,12 +5,13 @@ import logging
 import time
 from uuid import uuid4
 
+from homeassistant.core import Context
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.script import Script, async_validate_actions_config
 from homeassistant.helpers.script_variables import ScriptRunVariables
 
-from .const import CONF_ACTION_RESPONSES, DOMAIN
+from .const import CONF_ACTION_RESPONSES, DOMAIN, EVENT_RESPONSE
 from .automation_response import AutomationResponses
 
 LOGGER = logging.getLogger(__name__)
@@ -74,7 +75,19 @@ class ActionResponses:
         key = uuid4().hex
         self.requests[key] = {**message, "created": now, "state": "pending",
                               "context_id": context_id, "auto_reply": self.enabled}
+        if self.enabled:
+            self.activity(self.requests[key], "requested")
         return key
+
+    def activity(self, request, phase, status=None):
+        hub = self.hub
+        contact = hub.contact_snapshot().get(request["public_key"], {})
+        hub.hass.bus.async_fire(EVENT_RESPONSE, {
+            "entry_id": hub.entry.entry_id, "device_id": hub.device_id,
+            "name": hub.entry.title, "phase": phase, "status": status,
+            "recipient": contact.get("adv_name", request["public_key"][:12]),
+            "text": request["text"], "sender_timestamp": request["sender_timestamp"],
+        }, context=Context(parent_id=request.get("context_id")))
 
     async def _reply(self, request, status):
         if (not self.enabled or not request.get("auto_reply") or self.hub.stopping
@@ -83,8 +96,10 @@ class ActionResponses:
         try:
             await self.hub.send_message(request["public_key"], response_text(
                 status, request["sender_timestamp"], request["text"]))
+            self.activity(request, "queued", status)
             return True
-        except (ValueError, ConnectionError, OSError, TimeoutError):
+        except Exception:
+            self.activity(request, "failed", status)
             LOGGER.warning("Could not send Home Assistant action result", exc_info=True)
             return False
 

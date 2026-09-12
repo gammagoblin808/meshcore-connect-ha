@@ -77,6 +77,7 @@ class AutomationResponses:
                 LOGGER.warning("Home Assistant automation trace is unavailable", exc_info=True)
                 runs[run_id] = None
             if request_id not in self.watching:
+                responses.activity(request, "executing")
                 self.watching[request_id] = self.hass.async_create_background_task(
                     self._watch(request_id, request), "MeshCore action response")
             return

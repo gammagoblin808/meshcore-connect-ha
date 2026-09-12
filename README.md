@@ -200,6 +200,13 @@ contact name or public-key prefix. Logging a message does not grant permission
 to trigger word events. Only messages actually delivered by the companion's
 message queue can be shown, not undecryptable radio traffic.
 
+When action confirmations are enabled, Activity also records the incoming
+confirmation request, the start of the correlated automation, and whether its
+reply was accepted by the companion or failed. An accepted reply is **not** a
+confirmed delivery over the mesh. These entries help distinguish a missing
+automation correlation from a local send failure or a radio return-path issue.
+The integration never repeats an action because its reply failed.
+
 Message text is stored in Home Assistant's recorder/logbook history, subject to
 its retention and exclusion settings. Anyone with access to that history can
 read it. Duplicate received packets are suppressed.
@@ -293,4 +300,14 @@ which contains the tests. The GitHub HACS mirror contains only installation file
 python3.13 -m venv /tmp/connect-ha-tests
 /tmp/connect-ha-tests/bin/pip install -r home-assistant/requirements-test.txt
 /tmp/connect-ha-tests/bin/python -m pytest -q home-assistant/tests
+```
+
+The `event.received` trigger requires a newer HA test environment; it is skipped
+on 2025.3.4. The full suite also runs with Home Assistant 2026.9.1 and Python
+3.14.2 or newer. No real locks, buttons or companion transports are used:
+
+```sh
+python3.14 -m venv /tmp/connect-ha-2026-tests
+/tmp/connect-ha-2026-tests/bin/pip install -r home-assistant/requirements-test-current.txt
+/tmp/connect-ha-2026-tests/bin/python -m pytest -q home-assistant/tests
 ```
