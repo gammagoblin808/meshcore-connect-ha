@@ -2,11 +2,14 @@
 
 Local custom integration using the official `meshcore` Python library. It connects
 to one companion per entry, using USB serial (115200 baud) or TCP (default 5000).
-For a RAK MeshCore gateway, choose **MeshCore gateway companion** during setup.
-That mode uses only a gateway companion session on TCP port **5001**, **5002** or
-**5003**; the gateway administration port **5000** is never used for HA.
 BLE companions with the Connect firmware also expose the management protocol over
 USB. Home Assistant must have exclusive access to the selected interface.
+
+**Gateway companion (raw radio)** is a separate mode: Home Assistant owns the
+companion identity, contacts and channels. The RAK only transports radio packets
+over an authenticated service connection on **5001, 5002 or 5003**. Port **5000**
+is administration, never the HA service endpoint. This is not the normal
+companion protocol on another port.
 
 ## Installation
 
@@ -50,12 +53,69 @@ configuration screens are included.
 For USB, select a stable `/dev/serial/by-id/...` path on the Home Assistant host,
 not a laptop path. Containers need the serial device passed through. For TCP, use
 a trusted local network; MeshCore companion TCP is not an encrypted Internet API.
-When adding the integration, the **MeshCore gateway companion** option is the
-gateway-only mode. Enter the gateway host and one of its companion session ports
-(5001-5003). Do not enter the administration port 5000.
 The gateway companion must allow the session to read messages: Connect device-PIN
 authentication is not yet implemented by this integration. Existing device PINs
 are never changed or bypassed.
+
+### Independent HA Companion via RAK
+
+1. The RAK must actually run the raw Gateway firmware, for example
+   `26.09.57-gwexp2`, not `v26.09.38+mc1.17.1` Companion firmware. Updating this
+   integration does not flash or configure the RAK.
+2. On the gateway admin page, configure an independent service key and enable
+   one of ports **5001-5003**. Release any other client on that port. There is
+   exactly one client per service port. The service key is not the admin key.
+3. Add the integration and choose **Gateway companion (raw radio)** (German:
+   **Gateway-Companion (Rohfunk)**). Enter the host, service port, service key and
+   the name of the new HA companion. Setup checks the protocol, authentication
+   and a PING; it sends no radio packet and makes no gateway configuration change.
+4. The HA device exposes **Companion public key** and **Announce HA companion**.
+   After explicitly enabling radio transmission on the gateway, send an
+   announcement to add the HA companion on your other radios. The experimental
+   gateway currently resets its TX permission after a reboot. HA does not bypass
+   that permission or change the fixed gateway radio profile.
+5. Contacts are learned from signature-verified advertisements or added manually
+   with their full public key. Select **Allowed contacts** separately, configure
+   action words and enable **Send action confirmations** as with a normal
+   companion. On the remote radio, send to the **HA companion**, not the old RAK
+   companion identity.
+
+Private text messages, MeshCore ACKs/path returns, signed advertisements and
+configured channel reception are supported on ordinary flood/direct routes with
+1-, 2- or 3-byte path hashes. Channel messages remain activity events, not private
+action triggers. Scoped transport packets, room-server messages, remote CLI,
+gateway administration and radio configuration are not implemented by this mode.
+No node battery or airtime measurements are invented when the gateway does not
+provide them. Packet counters describe the current HA service session.
+
+Gateway `DONE` means local transmission completed, never recipient delivery.
+Only a matching received MeshCore ACK confirms delivery. The gateway's fixed
+airtime limits, 30-second transmit queue expiry and TX permission still apply;
+rejections and expired requests are failures, not successful replies. An
+interrupted transmit is not automatically replayed by the gateway transport.
+
+Identity, local contacts, channel keys and a bounded recent-message replay cache
+are stored in HA's private `.storage/meshcore_connect.gateway.<public-key>` file.
+The service key is stored in the integration's HA configuration. Protect HA
+backups as secrets. Neither private identity nor channel keys are sent to the
+gateway or included in integration diagnostics. Back up HA before migration;
+lost identity storage is an error, never a silently regenerated radio identity.
+The replay cache suppresses the most recent 256 received message identities
+across restarts, not unlimited historical replays. Existing automation freshness
+and authorization precautions still apply.
+
+The old version-3 gateway option only changed the companion TCP port. Such an
+entry now requests reauthentication to obtain the service key and create its
+actual HA identity. Existing words, allowlists and entity identifiers are retained.
+Reconfiguring a working gateway entry preserves its HA radio identity and local
+contacts; removing the integration deletes its private companion store. USB and
+normal TCP entries are not converted. Existing contacts in the RAK are not
+implicitly imported or overwritten.
+
+Use only a trusted, isolated LAN. PSK challenge authentication does not encrypt
+or authenticate the subsequent gateway stream. Do not expose these ports to the
+Internet. First-time gateway admin provisioning remains a firmware prerequisite;
+HA cannot unlock a disabled port or provision an unset admin key.
 
 ## Configure in Home Assistant
 
@@ -76,6 +136,9 @@ Connect > Configure**. No contact keys are required during initial connection.
   private channels require the shared 32-character hexadecimal key. Channel keys
   are sent to the device, not saved in integration options or exposed in sensor
   attributes. Occupied slots cannot be overwritten by Add channel.
+
+In raw-gateway mode these same controls manage the local HA companion store;
+channel keys and contacts are not written to the RAK.
 
 Each save finishes the configuration dialog. Reopen **Configure** for another
 operation. Device operations require an active gateway connection and a firmware

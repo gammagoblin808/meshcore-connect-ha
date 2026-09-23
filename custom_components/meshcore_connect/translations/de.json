@@ -4,9 +4,19 @@
     "step": {
       "user": {
         "menu_options": {
-          "gateway": "MeshCore-Gateway-Companion (TCP 5001-5003)",
+          "gateway": "Gateway-Companion (Rohfunk)",
           "serial": "USB / seriell",
           "tcp": "TCP / WLAN"
+        }
+      },
+      "gateway": {
+        "title": "HA-Companion über RAK-Gateway",
+        "description": "Eigene Funkidentität und Kontakte werden in HA gespeichert. Dienstschlüssel des freigeschalteten Gateway-Ports verwenden, nicht den Adminschlüssel. Nur im vertrauenswürdigen LAN: Die Verbindung ist unverschlüsselt.",
+        "data": {
+          "host": "Adresse",
+          "port": "Dienst-Port",
+          "service_key": "Dienstschlüssel",
+          "companion_name": "Companion-Name"
         }
       },
       "serial": {
@@ -21,21 +31,20 @@
           "host": "Host",
           "port": "Port"
         }
-      },
-      "gateway": {
-        "title": "MeshCore-Gateway-Companion",
-        "description": "Home Assistant mit einer Companion-Sitzung des Gateways verbinden. Port 5000 ist für die Verwaltung reserviert; hier 5001, 5002 oder 5003 verwenden.",
-        "data": {
-          "host": "Gateway-Host",
-          "port": "Companion-Sitzungsport (5001-5003)"
-        }
       }
     },
     "error": {
+      "invalid_auth": "Der Gateway-Dienstschlüssel wurde abgelehnt.",
+      "not_gateway": "Dieser Anschluss ist kein unterstütztes Rohfunk-Gateway.",
+      "gateway_unavailable": "Gateway nicht erreichbar. Dienst-Port freischalten und andere Clients auf diesem Port trennen.",
+      "invalid_gateway": "Ungültige Gateway-Einstellungen oder fehlender HA-Identitätsspeicher. Bei verlorener Identität das HA-Backup wiederherstellen.",
       "cannot_connect": "Verbindung fehlgeschlagen. Schnittstelle, Geräte-PIN und Zugriff durch andere Apps prüfen.",
       "invalid_key": "Vollständige öffentliche Schlüssel mit 64 Hexadezimalzeichen verwenden."
     },
     "abort": {
+      "not_gateway": "Dieser Eintrag ist kein Gateway-Companion.",
+      "reauth_successful": "Anmeldung aktualisiert.",
+      "reconfigure_successful": "Gateway-Verbindung aktualisiert.",
       "already_configured": "Dieses Begleitgerät ist bereits eingerichtet."
     }
   },
@@ -162,6 +171,9 @@
       }
     },
     "sensor": {
+      "companion_public_key": {
+        "name": "Öffentlicher Companion-Schlüssel"
+      },
       "battery_voltage": {
         "name": "Batteriespannung"
       },
@@ -194,6 +206,9 @@
       }
     },
     "button": {
+      "announce_companion": {
+        "name": "HA-Companion ankündigen"
+      },
       "refresh_contacts": {
         "name": "Kontakte und Favoriten aktualisieren"
       }

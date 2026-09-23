@@ -4,9 +4,19 @@
     "step": {
       "user": {
         "menu_options": {
-          "gateway": "MeshCore gateway companion (TCP 5001-5003)",
+          "gateway": "Gateway companion (raw radio)",
           "serial": "USB / serial",
           "tcp": "TCP / Wi-Fi"
+        }
+      },
+      "gateway": {
+        "title": "HA companion via RAK gateway",
+        "description": "Own companion identity and contacts are stored in HA. Use the service key for the enabled gateway port, not the admin key. Trusted LAN only; the link is not encrypted.",
+        "data": {
+          "host": "Host",
+          "port": "Service port",
+          "service_key": "Service key",
+          "companion_name": "Companion name"
         }
       },
       "serial": {
@@ -21,21 +31,20 @@
           "host": "Host",
           "port": "Port"
         }
-      },
-      "gateway": {
-        "title": "MeshCore gateway companion",
-        "description": "Connect Home Assistant to one of the gateway's companion sessions. Port 5000 is reserved for administration; use 5001, 5002 or 5003.",
-        "data": {
-          "host": "Gateway host",
-          "port": "Companion session port (5001-5003)"
-        }
       }
     },
     "error": {
+      "invalid_auth": "Gateway service key rejected.",
+      "not_gateway": "This endpoint is not a supported raw gateway.",
+      "gateway_unavailable": "Gateway unavailable. Enable the service port and release any other client using it.",
+      "invalid_gateway": "Invalid gateway settings or missing HA identity storage. Restore the HA backup if the identity was lost.",
       "cannot_connect": "Cannot connect. Check transport, device PIN and whether another app is using this interface.",
       "invalid_key": "Use complete 64-character hexadecimal public keys."
     },
     "abort": {
+      "not_gateway": "This entry is not a gateway companion.",
+      "reauth_successful": "Authentication updated.",
+      "reconfigure_successful": "Gateway connection updated.",
       "already_configured": "This companion is already configured."
     }
   },
@@ -162,6 +171,9 @@
       }
     },
     "sensor": {
+      "companion_public_key": {
+        "name": "Companion public key"
+      },
       "battery_voltage": {
         "name": "Battery voltage"
       },
@@ -194,6 +206,9 @@
       }
     },
     "button": {
+      "announce_companion": {
+        "name": "Announce HA companion"
+      },
       "refresh_contacts": {
         "name": "Refresh contacts and favorites"
       }

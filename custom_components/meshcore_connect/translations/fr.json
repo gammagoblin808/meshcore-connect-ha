@@ -4,9 +4,19 @@
     "step": {
       "user": {
         "menu_options": {
-          "gateway": "Compagnon de passerelle MeshCore (TCP 5001-5003)",
+          "gateway": "Compagnon via passerelle (radio brute)",
           "serial": "USB / série",
           "tcp": "TCP / Wi-Fi"
+        }
+      },
+      "gateway": {
+        "title": "Compagnon HA via passerelle RAK",
+        "description": "L’identité radio et les contacts sont stockés dans HA. Utilisez la clé du port de service activé, pas la clé administrateur. Réseau local de confiance uniquement : connexion non chiffrée.",
+        "data": {
+          "host": "Adresse",
+          "port": "Port de service",
+          "service_key": "Clé de service",
+          "companion_name": "Nom du compagnon"
         }
       },
       "serial": {
@@ -21,21 +31,20 @@
           "host": "Hôte",
           "port": "Port"
         }
-      },
-      "gateway": {
-        "title": "Compagnon de passerelle MeshCore",
-        "description": "Connecter Home Assistant à une session compagnon de la passerelle. Le port 5000 est réservé à l'administration ; utiliser 5001, 5002 ou 5003.",
-        "data": {
-          "host": "Hôte de la passerelle",
-          "port": "Port de session compagnon (5001-5003)"
-        }
       }
     },
     "error": {
+      "invalid_auth": "Clé de service refusée par la passerelle.",
+      "not_gateway": "Ce point de connexion ne parle pas le protocole de passerelle radio brute.",
+      "gateway_unavailable": "Passerelle indisponible. Activez le port de service et déconnectez les autres clients de ce port.",
+      "invalid_gateway": "Paramètres invalides ou identité HA absente. Restaurez la sauvegarde HA si l’identité est perdue.",
       "cannot_connect": "Connexion impossible. Vérifiez le port, le code PIN et les autres applications utilisant cette interface.",
       "invalid_key": "Utilisez les clés publiques complètes de 64 caractères hexadécimaux."
     },
     "abort": {
+      "not_gateway": "Cette entrée n’est pas un compagnon via passerelle.",
+      "reauth_successful": "Authentification mise à jour.",
+      "reconfigure_successful": "Connexion à la passerelle mise à jour.",
       "already_configured": "Ce compagnon est déjà configuré."
     }
   },
@@ -162,6 +171,9 @@
       }
     },
     "sensor": {
+      "companion_public_key": {
+        "name": "Clé publique du compagnon"
+      },
       "battery_voltage": {
         "name": "Tension de la batterie"
       },
@@ -194,6 +206,9 @@
       }
     },
     "button": {
+      "announce_companion": {
+        "name": "Annoncer le compagnon HA"
+      },
       "refresh_contacts": {
         "name": "Actualiser les contacts et favoris"
       }

@@ -1,21 +1,95 @@
 import voluptuous as vol
+from contextlib import nullcontext
 from uuid import uuid4
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .client import connect
-from .const import (CONF_ALLOWED, CONF_MODE, CONF_WORDS, DOMAIN,
-                    MODE_GATEWAY_COMPANION, MODE_STANDARD)
+from .const import CONF_ALLOWED, CONF_WORDS, DOMAIN, CONF_MODE, MODE_GATEWAY_COMPANION
+from .gateway_state import GatewayState
+from .gateway_transport import GatewayAuthError, GatewayProtocolError
 from .message import allowed_keys
 from .words import configured_words, validate_word, word_options
 
 
 class MeshCoreConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 3
+    VERSION = 4
+
+    async def _probe_gateway(self, data, state, entry):
+        hub = self.hass.data.get(DOMAIN, {}).get(entry.entry_id) if entry else None
+        async with (hub.lock if hub else nullcontext()):
+            if hub:
+                await hub._disconnect()
+            client = None
+            try:
+                client = await connect(data, gateway_state=state)
+            finally:
+                if client:
+                    await client.disconnect()
 
     async def async_step_user(self, user_input=None):
         return self.async_show_menu(step_id="user", menu_options=["gateway", "serial", "tcp"])
+
+    async def async_step_gateway(self, user_input=None):
+        errors = {}
+        entry = getattr(self, "_gateway_entry", None)
+        defaults = entry.data if entry else {}
+        if user_input is not None:
+            try:
+                data = {**defaults, **user_input, "transport": "tcp", CONF_MODE: MODE_GATEWAY_COMPANION}
+                if entry and data.get("gateway_identity"):
+                    state = await GatewayState.load(self.hass, data["gateway_identity"])
+                else:
+                    state = GatewayState.create()
+                for other in self._async_current_entries():
+                    if (other is not entry and other.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION
+                            and other.data.get("host", "").lower() == data["host"].lower()
+                            and other.data.get("port") == data["port"]):
+                        return self.async_abort(reason="already_configured")
+                await self._probe_gateway(data, state, entry)
+                data["gateway_identity"] = state.public_key
+                if not entry:
+                    await self.async_set_unique_id(state.public_key)
+                    self._abort_if_unique_id_configured()
+                state.bind(self.hass)
+                await state.save()
+                if entry:
+                    return self.async_update_reload_and_abort(entry, data_updates=data,
+                        reason="reauth_successful" if self.source == "reauth" else "reconfigure_successful")
+                return self.async_create_entry(title=data["companion_name"], data={**data, CONF_ALLOWED: []})
+            except GatewayAuthError:
+                errors["base"] = "invalid_auth"
+            except GatewayProtocolError:
+                errors["base"] = "not_gateway"
+            except (OSError, ConnectionError, TimeoutError):
+                errors["base"] = "gateway_unavailable"
+            except (KeyError, ValueError):
+                errors["base"] = "invalid_gateway"
+            finally:
+                if entry and errors:
+                    hub = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+                    if hub:
+                        self.hass.async_create_task(hub.async_request_refresh())
+        schema = vol.Schema({
+            vol.Required("host", default=defaults.get("host", "")): str,
+            vol.Required("port", default=defaults.get("port", 5001)): vol.All(vol.Coerce(int), vol.In((5001, 5002, 5003))),
+            vol.Required("service_key"): selector.TextSelector({"type": "password"}),
+            vol.Required("companion_name", default=defaults.get("companion_name", "Home Assistant")): str,
+        })
+        return self.async_show_form(step_id="gateway", data_schema=schema, errors=errors)
+
+    async def async_step_reauth(self, entry_data):
+        self._gateway_entry = self._get_reauth_entry()
+        if self._gateway_entry.data.get(CONF_MODE) != MODE_GATEWAY_COMPANION:
+            return self.async_abort(reason="not_gateway")
+        return await self.async_step_gateway()
+
+    async def async_step_reconfigure(self, user_input=None):
+        self._gateway_entry = self._get_reconfigure_entry()
+        if self._gateway_entry.data.get(CONF_MODE) != MODE_GATEWAY_COMPANION:
+            return self.async_abort(reason="not_gateway")
+        return await self.async_step_gateway(user_input)
 
     async def async_step_serial(self, user_input=None):
         return await self._connection("serial", user_input, {
@@ -28,25 +102,17 @@ class MeshCoreConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("port", default=5000): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
         })
 
-    async def async_step_gateway(self, user_input=None):
-        return await self._connection("tcp", user_input, {
-            vol.Required("host"): str,
-            vol.Required("port", default=5001): vol.All(vol.Coerce(int), vol.Range(min=5001, max=5003)),
-        }, mode=MODE_GATEWAY_COMPANION)
-
-    async def _connection(self, kind, user_input, schema, *, mode=MODE_STANDARD):
+    async def _connection(self, kind, user_input, schema):
         errors = {}
         if user_input is not None:
             client = None
             try:
-                data = {**user_input, "transport": kind, CONF_MODE: mode, CONF_ALLOWED: []}
+                data = {**user_input, "transport": kind, CONF_ALLOWED: []}
                 client = await connect(data)
                 key = client.self_info["public_key"]
                 await self.async_set_unique_id(key)
                 self._abort_if_unique_id_configured()
-                title = ("MeshCore Gateway Companion"
-                         if mode == MODE_GATEWAY_COMPANION else "MeshCore Connect")
-                return self.async_create_entry(title=title, data=data)
+                return self.async_create_entry(title="MeshCore Connect", data=data)
             except (OSError, ConnectionError, TimeoutError, KeyError, ValueError):
                 errors["base"] = "cannot_connect"
             finally:

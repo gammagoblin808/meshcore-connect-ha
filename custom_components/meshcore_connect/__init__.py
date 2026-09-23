@@ -5,7 +5,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_MODE, DOMAIN, MODE_STANDARD
+from .const import CONF_MODE, DOMAIN, MODE_STANDARD, MODE_GATEWAY_COMPANION
 from .action_response import automation_actions
 from .coordinator import MeshCoreCoordinator
 from .words import configured_words, word_options
@@ -14,15 +14,22 @@ PLATFORMS = [Platform.SENSOR, Platform.NOTIFY, Platform.BUTTON, Platform.EVENT, 
 
 
 async def async_migrate_entry(hass, entry):
-    if entry.version > 3:
+    if entry.version > 4:
         return False
-    if entry.version < 3:
-        data = {**entry.data, CONF_MODE: entry.data.get(CONF_MODE, MODE_STANDARD)}
-        changes = {"data": data, "version": 3}
+    if entry.version < 4:
+        changes = {"data": {**entry.data, CONF_MODE: entry.data.get(CONF_MODE, MODE_STANDARD)}, "version": 4}
         if entry.version == 1:
             changes["options"] = word_options(entry, configured_words(entry))
         hass.config_entries.async_update_entry(entry, **changes)
     return True
+
+
+async def async_remove_entry(hass, entry):
+    if entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION and entry.data.get("gateway_identity"):
+        from homeassistant.helpers.storage import Store
+        from .message import public_key
+        identity = public_key(entry.data["gateway_identity"])
+        await Store(hass, 1, f"{DOMAIN}.gateway.{identity}", private=True).async_remove()
 
 
 async def async_setup_entry(hass, entry):

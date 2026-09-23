@@ -3,7 +3,7 @@ from homeassistant.const import UnitOfElectricPotential
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_MODE, MODE_GATEWAY_COMPANION
 from .entity import CompanionEntity
 
 METRICS = {
@@ -19,8 +19,24 @@ METRICS = {
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([BatteryVoltage(entry.runtime_data, entry), Favorites(entry.runtime_data, entry)])
+    async_add_entities([Favorites(entry.runtime_data, entry)])
+    if entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION:
+        async_add_entities([CompanionPublicKey(entry.runtime_data, entry)])
+    else:
+        async_add_entities([BatteryVoltage(entry.runtime_data, entry)])
     async_add_entities([RadioMetric(entry.runtime_data, entry, key) for key in METRICS])
+
+
+class CompanionPublicKey(CompanionEntity, SensorEntity):
+    _attr_translation_key = "companion_public_key"
+    _attr_icon = "mdi:identifier"
+
+    def __init__(self, hub, entry):
+        super().__init__(hub, entry, "companion_public_key")
+
+    @property
+    def native_value(self):
+        return (self.coordinator.data or {}).get("companion_public_key")
 
 
 class RadioMetric(CompanionEntity, SensorEntity):

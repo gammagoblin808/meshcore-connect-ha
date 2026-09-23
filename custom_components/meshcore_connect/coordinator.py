@@ -7,10 +7,12 @@ from uuid import uuid4
 
 from meshcore import EventType
 from homeassistant.core import Context
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .client import checked, connect
-from .const import CONF_ALLOWED, DOMAIN, EVENT_MESSAGE, EVENT_SOS, EVENT_WORD, EVENT_RECEIVED
+from .const import (CONF_ALLOWED, DOMAIN, EVENT_MESSAGE, EVENT_SOS, EVENT_WORD, EVENT_RECEIVED,
+                    CONF_MODE, MODE_GATEWAY_COMPANION)
 from .management import CompanionManagement
 from .message import public_key, trusted_message
 from .words import configured_words, validate_word, word_options
@@ -100,6 +102,26 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         if not self.stopping:
             self.hass.async_create_task(self.async_request_refresh())
 
+    async def _contacts_changed(self, event):
+        self.contacts_at = 0
+        await self._wake(event)
+
+    async def _connect(self):
+        if self.entry.data.get(CONF_MODE) != MODE_GATEWAY_COMPANION:
+            return await connect(self.entry.data)
+        from .gateway_state import GatewayState
+        from .gateway_transport import GatewayAuthError
+        if not self.entry.data.get("service_key") or not self.entry.data.get("gateway_identity"):
+            raise ConfigEntryAuthFailed("Configure the gateway service key and HA companion identity")
+        try:
+            state = await GatewayState.load(self.hass, self.entry.data["gateway_identity"])
+        except (ValueError, KeyError) as error:
+            raise ConfigEntryError("HA companion identity storage is missing or invalid; restore the HA backup") from error
+        try:
+            return await connect(self.entry.data, gateway_state=state)
+        except GatewayAuthError as error:
+            raise ConfigEntryAuthFailed("Gateway service key rejected") from error
+
     async def _async_update_data(self):
         async with self.lock:
             if self.stopping:
@@ -107,13 +129,18 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
             try:
                 if not self.client or not self.client.is_connected:
                     await self._disconnect()
-                    self.client = await connect(self.entry.data)
+                    self.client = await self._connect()
                     # Subscribe before requesting contacts to avoid fast-response races.
-                    await self._read_contacts()
                     self.subscriptions.append(self.client.subscribe(EventType.MESSAGES_WAITING, self._wake))
+                    if self.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION:
+                        self.subscriptions.append(self.client.subscribe(EventType.NEW_CONTACT, self._contacts_changed))
+                    await self._read_contacts()
                     self.battery_at = 0
                     self.stats_at = 0
-                if time.monotonic() - self.battery_at >= 300 or not self.battery_at:
+                if self.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION:
+                    self.state["voltage"] = None
+                    self.state["companion_public_key"] = self.client.self_info["public_key"]
+                elif time.monotonic() - self.battery_at >= 300 or not self.battery_at:
                     battery = checked(await self.client.commands.get_bat(), EventType.BATTERY)
                     self.state["voltage"] = battery["level"] / 1000.0
                     self.battery_at = time.monotonic()
