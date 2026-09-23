@@ -5,16 +5,17 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .client import connect
-from .const import CONF_ALLOWED, CONF_WORDS, DOMAIN
+from .const import (CONF_ALLOWED, CONF_MODE, CONF_WORDS, DOMAIN,
+                    MODE_GATEWAY_COMPANION, MODE_STANDARD)
 from .message import allowed_keys
 from .words import configured_words, validate_word, word_options
 
 
 class MeshCoreConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 2
+    VERSION = 3
 
     async def async_step_user(self, user_input=None):
-        return self.async_show_menu(step_id="user", menu_options=["serial", "tcp"])
+        return self.async_show_menu(step_id="user", menu_options=["gateway", "serial", "tcp"])
 
     async def async_step_serial(self, user_input=None):
         return await self._connection("serial", user_input, {
@@ -27,17 +28,25 @@ class MeshCoreConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("port", default=5000): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
         })
 
-    async def _connection(self, kind, user_input, schema):
+    async def async_step_gateway(self, user_input=None):
+        return await self._connection("tcp", user_input, {
+            vol.Required("host"): str,
+            vol.Required("port", default=5001): vol.All(vol.Coerce(int), vol.Range(min=5001, max=5003)),
+        }, mode=MODE_GATEWAY_COMPANION)
+
+    async def _connection(self, kind, user_input, schema, *, mode=MODE_STANDARD):
         errors = {}
         if user_input is not None:
             client = None
             try:
-                data = {**user_input, "transport": kind, CONF_ALLOWED: []}
+                data = {**user_input, "transport": kind, CONF_MODE: mode, CONF_ALLOWED: []}
                 client = await connect(data)
                 key = client.self_info["public_key"]
                 await self.async_set_unique_id(key)
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(title="MeshCore Connect", data=data)
+                title = ("MeshCore Gateway Companion"
+                         if mode == MODE_GATEWAY_COMPANION else "MeshCore Connect")
+                return self.async_create_entry(title=title, data=data)
             except (OSError, ConnectionError, TimeoutError, KeyError, ValueError):
                 errors["base"] = "cannot_connect"
             finally:

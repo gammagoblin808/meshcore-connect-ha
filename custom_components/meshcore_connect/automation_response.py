@@ -1,9 +1,12 @@
 """Observe HA automation traces without changing or re-running automations."""
 import asyncio
+from dataclasses import dataclass, field
 import logging
 import time
 
 from homeassistant.core import callback
+
+from .action_request import RequestState
 
 LOGGER = logging.getLogger(__name__)
 POLL_INTERVAL = 1
@@ -46,11 +49,19 @@ def trace_result(trace):
     return "OK"
 
 
+@dataclass
+class ObservedRuns:
+    runs: dict = field(default_factory=dict)
+    too_many: bool = False
+
+
 class AutomationResponses:
     def __init__(self, responses):
         self.responses = responses
         self.hass = responses.hub.hass
         self.watching = {}
+        self._tasks = set()
+        self.observations: dict[str, ObservedRuns] = {}
         self.unsubscribe = self.hass.bus.async_listen("automation_triggered", self.started)
 
     @callback
@@ -59,17 +70,18 @@ class AutomationResponses:
         if not responses.enabled or responses.hub.stopping:
             return
         for request_id, request in responses.requests.items():
-            if (not request.get("auto_reply") or request["state"] != "pending"
-                    or not request.get("context_id")
-                    or event.context.parent_id != request["context_id"]
-                    or time.monotonic() - request["created"] > RESULT_TIMEOUT):
+            if (not request.auto_reply or request.state is not RequestState.PENDING
+                    or not request.context_id
+                    or event.context.parent_id != request.context_id
+                    or time.monotonic() - request.created >= RESULT_TIMEOUT):
                 continue
             run_id = event.context.id
-            runs = request.setdefault("automation_runs", {})
+            observation = self.observations.setdefault(request_id, ObservedRuns())
+            runs = observation.runs
             if run_id in runs:
                 return
             if len(runs) >= MAX_RUNS:
-                request["too_many_runs"] = True
+                observation.too_many = True
                 return
             try:
                 runs[run_id] = find_trace(self.hass, event.data.get("entity_id"), run_id)
@@ -78,50 +90,53 @@ class AutomationResponses:
                 runs[run_id] = None
             if request_id not in self.watching:
                 responses.activity(request, "executing")
-                self.watching[request_id] = self.hass.async_create_background_task(
-                    self._watch(request_id, request), "MeshCore action response")
+                task = self.hass.async_create_background_task(
+                    self._watch(request_id, request, observation), "MeshCore action response")
+                self.watching[request_id] = task
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
             return
 
-    async def _watch(self, request_id, request):
+    async def _watch(self, request_id, request, observation):
         responses = self.responses
         try:
             while True:
                 # Let all automations for this message start before aggregating.
                 await asyncio.sleep(POLL_INTERVAL)
                 if (not responses.enabled or responses.hub.stopping
-                        or not request["auto_reply"] or request["state"] != "pending"):
+                        or not request.auto_reply or request.state is not RequestState.PENDING):
                     return
-                results = [trace_result(trace) for trace in request["automation_runs"].values()]
-                expired = time.monotonic() - request["created"] >= RESULT_TIMEOUT
+                results = [trace_result(trace) for trace in observation.runs.values()]
+                expired = time.monotonic() - request.created >= RESULT_TIMEOUT
                 if None in results and not expired:
                     continue
-                status = ("ERR" if "ERR" in results else
-                          "UNKNOWN" if expired or request.get("too_many_runs")
-                          or "UNKNOWN" in results else "OK")
-                request["state"] = status
-                await responses._reply(request, status)
+                status = (RequestState.ERR if "ERR" in results else
+                          RequestState.UNKNOWN if expired or observation.too_many
+                          or "UNKNOWN" in results else RequestState.OK)
+                await responses.complete(request_id, status, expected=RequestState.PENDING)
                 return
         except asyncio.CancelledError:
             raise
         except Exception:
             LOGGER.exception("Cannot determine MeshCore automation execution result")
             # Unknown HA trace shapes must never produce a success response.
-            if request["state"] == "pending":
-                request["state"] = "UNKNOWN"
-                await responses._reply(request, "UNKNOWN")
+            await responses.complete(request_id, RequestState.UNKNOWN, expected=RequestState.PENDING)
         finally:
             self.watching.pop(request_id, None)
+            self.observations.pop(request_id, None)
 
     def disable(self):
-        for request in self.responses.requests.values():
-            request["auto_reply"] = False
         for task in self.watching.values():
             task.cancel()
         self.watching.clear()
+        self.observations.clear()
 
     async def close(self):
-        self.unsubscribe()
-        tasks = list(self.watching.values())
+        if self.unsubscribe is not None:
+            self.unsubscribe()
+            self.unsubscribe = None
+        # Disabled observers still belong to us until cancellation has drained.
+        tasks = list(self._tasks)
         self.disable()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)

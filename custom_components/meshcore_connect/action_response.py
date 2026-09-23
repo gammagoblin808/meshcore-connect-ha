@@ -12,6 +12,7 @@ from homeassistant.helpers.script import Script, async_validate_actions_config
 from homeassistant.helpers.script_variables import ScriptRunVariables
 
 from .const import CONF_ACTION_RESPONSES, DOMAIN, EVENT_RESPONSE
+from .action_request import ActionRequest, RequestState
 from .automation_response import AutomationResponses
 from .reply_delivery import send_reply
 
@@ -46,7 +47,7 @@ def response_text(status, timestamp, word):
 class ActionResponses:
     def __init__(self, hub):
         self.hub = hub
-        self.requests = OrderedDict()
+        self.requests: OrderedDict[str, ActionRequest] = OrderedDict()
         self.running = set()
         self.observer = AutomationResponses(self)
 
@@ -55,6 +56,7 @@ class ActionResponses:
         return self.hub.entry.options.get(CONF_ACTION_RESPONSES, False) is True
 
     async def close(self):
+        self.disable_reply()
         await self.observer.close()
         tasks = list(self.running - {asyncio.current_task()})
         for task in tasks:
@@ -69,37 +71,52 @@ class ActionResponses:
             return None
         now = time.monotonic()
         for key, request in list(self.requests.items()):
-            if request["state"] != "running" and now - request["created"] > REQUEST_TTL:
+            request.expire(now=now, ttl=REQUEST_TTL)
+            if request.state is not RequestState.RUNNING and now - request.created >= REQUEST_TTL:
                 del self.requests[key]
         if len(self.requests) >= MAX_REQUESTS:
             return None
         key = uuid4().hex
-        self.requests[key] = {**message, "created": now, "state": "pending",
-                              "context_id": context_id, "auto_reply": self.enabled}
+        self.requests[key] = ActionRequest(
+            public_key=message["public_key"], text=message["text"], sender_timestamp=timestamp,
+            created=now, context_id=context_id, auto_reply=self.enabled)
         if self.enabled:
             self.activity(self.requests[key], "requested")
         return key
 
+    def disable_reply(self):
+        """Disable existing replies permanently, without cancelling HA actions."""
+        for request in self.requests.values():
+            request.disable_reply()
+        self.observer.disable()
+
+    async def complete(self, request_id, status: RequestState, *, expected: RequestState):
+        """Reserve one result before delivery; observers cannot finish owned actions."""
+        request = self.requests.get(request_id)
+        if request is None or not request.complete(status, expected=expected):
+            return False
+        return await self._reply(request, status.value)
+
     def activity(self, request, phase, status=None):
         hub = self.hub
-        contact = hub.contact_snapshot().get(request["public_key"], {})
+        contact = hub.contact_snapshot().get(request.public_key, {})
         hub.hass.bus.async_fire(EVENT_RESPONSE, {
             "entry_id": hub.entry.entry_id, "device_id": hub.device_id,
             "name": hub.entry.title, "phase": phase, "status": status,
-            "recipient": contact.get("adv_name", request["public_key"][:12]),
-            "text": request["text"], "sender_timestamp": request["sender_timestamp"],
-        }, context=Context(parent_id=request.get("context_id")))
+            "recipient": contact.get("adv_name", request.public_key[:12]),
+            "text": request.text, "sender_timestamp": request.sender_timestamp,
+        }, context=Context(parent_id=request.context_id))
 
     async def _reply(self, request, status):
         def permitted():
-            return (self.enabled and request.get("auto_reply") and not self.hub.stopping
-                    and request["public_key"] in self.hub.allowed)
+            return (self.enabled and request.auto_reply and not self.hub.stopping
+                    and request.public_key in self.hub.allowed)
 
         if not permitted():
             return False
         try:
-            return await send_reply(self.hub, request["public_key"], response_text(
-                status, request["sender_timestamp"], request["text"]), permitted,
+            return await send_reply(self.hub, request.public_key, response_text(
+                status, request.sender_timestamp, request.text), permitted,
                 lambda phase: self.activity(request, phase, status), confirm=status != "RUN")
         except Exception:
             self.activity(request, "failed", status)
@@ -110,18 +127,20 @@ class ActionResponses:
         request = self.requests.get(request_id)
         hub = self.hub
         if (request is None or hub.stopping
-                or request["public_key"] not in hub.allowed
-                or request["public_key"] not in hub.contact_snapshot()
-                or request["text"] not in hub.words.values()):
+                or request.public_key not in hub.allowed
+                or request.public_key not in hub.contact_snapshot()
+                or request.text not in hub.words.values()):
             raise HomeAssistantError("Unknown or no longer authorized MeshCore request")
-        if request["state"] != "pending":
-            raise HomeAssistantError("This MeshCore request has already been handled")
-        if time.monotonic() - request["created"] > REQUEST_TTL:
+        request.expire(now=time.monotonic(), ttl=REQUEST_TTL)
+        if request.state is RequestState.EXPIRED:
             raise HomeAssistantError("MeshCore request expired")
+        if request.state is not RequestState.PENDING:
+            raise HomeAssistantError("This MeshCore request has already been handled")
         if not actions:
             raise HomeAssistantError("Configure at least one Home Assistant action")
         # Claim before awaiting: duplicate automation runs must not repeat the action.
-        request["state"] = "running"
+        if not request.claim(now=time.monotonic(), ttl=REQUEST_TTL):
+            raise HomeAssistantError("MeshCore request expired")
         task = asyncio.current_task()
         self.running.add(task)
         try:
@@ -131,8 +150,8 @@ class ActionResponses:
 
     async def _execute(self, request_id, request, actions, context):
         hub = self.hub
-        await self._reply(request, "RUN")
         try:
+            await self._reply(request, "RUN")
             async with asyncio.timeout(REQUEST_TTL):
                 marker = f"meshcore_completed_{request_id}"
                 sequence = await async_validate_actions_config(hub.hass, cv.SCRIPT_SCHEMA([
@@ -142,22 +161,22 @@ class ActionResponses:
                 # as a permanent top-level HA script for every incoming message.
                 runner = Script(hub.hass, sequence, "MeshCore action", DOMAIN, top_level=False)
                 variables = ScriptRunVariables.create_top_level({
-                    "meshcore_sender": request["public_key"],
-                    "meshcore_word": request["text"],
+                    "meshcore_sender": request.public_key,
+                    "meshcore_word": request.text,
                     "meshcore_request_id": request_id,
                     "context": context,
                 })
                 result = await runner.async_run(variables, context=context)
         except asyncio.CancelledError:
-            request["state"] = "UNKNOWN"
+            request.complete(RequestState.UNKNOWN, expected=RequestState.RUNNING)
             raise
         except TimeoutError:
-            request["state"] = "UNKNOWN"
+            status = RequestState.UNKNOWN
         except Exception:
             LOGGER.exception("Home Assistant action failed")
-            request["state"] = "ERR"
+            status = RequestState.ERR
         else:
-            request["state"] = "OK" if result and result.variables.get(marker) else "UNKNOWN"
+            status = RequestState.OK if result and result.variables.get(marker) else RequestState.UNKNOWN
         # A failed radio reply never repeats the actions.
-        sent = await self._reply(request, request["state"])
-        return {"status": request["state"], "reply_queued": sent}
+        sent = await self.complete(request_id, status, expected=RequestState.RUNNING)
+        return {"status": request.state.value, "reply_queued": sent}

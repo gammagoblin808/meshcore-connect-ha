@@ -4,6 +4,7 @@
     "step": {
       "user": {
         "menu_options": {
+          "gateway": "Compagnon de passerelle MeshCore (TCP 5001-5003)",
           "serial": "USB / série",
           "tcp": "TCP / Wi-Fi"
         }
@@ -19,6 +20,14 @@
         "data": {
           "host": "Hôte",
           "port": "Port"
+        }
+      },
+      "gateway": {
+        "title": "Compagnon de passerelle MeshCore",
+        "description": "Connecter Home Assistant à une session compagnon de la passerelle. Le port 5000 est réservé à l'administration ; utiliser 5001, 5002 ou 5003.",
+        "data": {
+          "host": "Hôte de la passerelle",
+          "port": "Port de session compagnon (5001-5003)"
         }
       }
     },
@@ -146,6 +155,12 @@
     }
   },
   "entity": {
+    "select": {
+      "status_target": {
+        "name": "Etat : {word}",
+        "state": {"disabled": "Desactive (action)"}
+      }
+    },
     "sensor": {
       "battery_voltage": {
         "name": "Tension de la batterie"

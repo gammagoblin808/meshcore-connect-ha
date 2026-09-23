@@ -15,6 +15,7 @@ from .management import CompanionManagement
 from .message import public_key, trusted_message
 from .words import configured_words, validate_word, word_options
 from .action_response import ActionResponses
+from .status_query import StatusQueries
 
 LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         self.received_seen = OrderedDict()
         self.messages_ready = False
         self.action_responses = ActionResponses(self)
+        self.status_queries = StatusQueries(self)
 
     @property
     def words(self):
@@ -81,6 +83,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
 
     async def close(self):
         self.stopping = True
+        await self.status_queries.close()
         await self.action_responses.close()
         async with self.lock:
             await self._disconnect()
@@ -155,6 +158,8 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
             self.seen.popitem(last=False)
         message["entry_id"] = self.entry.entry_id
         context = Context()
+        if self.status_queries.receive(message, context):
+            return
         request_id = self.action_responses.register(message, context_id=context.id)
         self.hass.bus.async_fire(EVENT_MESSAGE, message, context=context)
         if message["sos"]:

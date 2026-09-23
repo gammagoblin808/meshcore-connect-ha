@@ -1,4 +1,7 @@
 DOMAIN = "meshcore_connect"
+CONF_MODE = "mode"
+MODE_STANDARD = "standard"
+MODE_GATEWAY_COMPANION = "gateway_companion"
 EVENT_MESSAGE = DOMAIN + "_message"
 EVENT_SOS = DOMAIN + "_sos"
 CONF_ALLOWED = "allowed_contacts"

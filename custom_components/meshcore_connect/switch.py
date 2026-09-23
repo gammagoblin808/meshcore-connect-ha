@@ -43,7 +43,7 @@ class ActionResponseSwitch(CompanionEntity, SwitchEntity):
         hub.hass.config_entries.async_update_entry(
             hub.entry, options={**hub.entry.options, CONF_ACTION_RESPONSES: enabled})
         if not enabled:
-            hub.action_responses.observer.disable()
+            hub.action_responses.disable_reply()
         hub.options_updated()
 
     async def async_turn_on(self, **kwargs):

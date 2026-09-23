@@ -5,20 +5,23 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
-from .const import DOMAIN
+from .const import CONF_MODE, DOMAIN, MODE_STANDARD
 from .action_response import automation_actions
 from .coordinator import MeshCoreCoordinator
 from .words import configured_words, word_options
 
-PLATFORMS = [Platform.SENSOR, Platform.NOTIFY, Platform.BUTTON, Platform.EVENT, Platform.SWITCH, Platform.TEXT]
+PLATFORMS = [Platform.SENSOR, Platform.NOTIFY, Platform.BUTTON, Platform.EVENT, Platform.SWITCH, Platform.TEXT, Platform.SELECT]
 
 
 async def async_migrate_entry(hass, entry):
-    if entry.version > 2:
+    if entry.version > 3:
         return False
-    if entry.version == 1:
-        hass.config_entries.async_update_entry(
-            entry, options=word_options(entry, configured_words(entry)), version=2)
+    if entry.version < 3:
+        data = {**entry.data, CONF_MODE: entry.data.get(CONF_MODE, MODE_STANDARD)}
+        changes = {"data": data, "version": 3}
+        if entry.version == 1:
+            changes["options"] = word_options(entry, configured_words(entry))
+        hass.config_entries.async_update_entry(entry, **changes)
     return True
 
 

@@ -2,6 +2,9 @@
 
 Local custom integration using the official `meshcore` Python library. It connects
 to one companion per entry, using USB serial (115200 baud) or TCP (default 5000).
+For a RAK MeshCore gateway, choose **MeshCore gateway companion** during setup.
+That mode uses only a gateway companion session on TCP port **5001**, **5002** or
+**5003**; the gateway administration port **5000** is never used for HA.
 BLE companions with the Connect firmware also expose the management protocol over
 USB. Home Assistant must have exclusive access to the selected interface.
 
@@ -47,6 +50,9 @@ configuration screens are included.
 For USB, select a stable `/dev/serial/by-id/...` path on the Home Assistant host,
 not a laptop path. Containers need the serial device passed through. For TCP, use
 a trusted local network; MeshCore companion TCP is not an encrypted Internet API.
+When adding the integration, the **MeshCore gateway companion** option is the
+gateway-only mode. Enter the gateway host and one of its companion session ports
+(5001-5003). Do not enter the administration port 5000.
 The gateway companion must allow the session to read messages: Connect device-PIN
 authentication is not yet implemented by this integration. Existing device PINs
 are never changed or bypassed.

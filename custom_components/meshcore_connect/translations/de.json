@@ -4,6 +4,7 @@
     "step": {
       "user": {
         "menu_options": {
+          "gateway": "MeshCore-Gateway-Companion (TCP 5001-5003)",
           "serial": "USB / seriell",
           "tcp": "TCP / WLAN"
         }
@@ -19,6 +20,14 @@
         "data": {
           "host": "Host",
           "port": "Port"
+        }
+      },
+      "gateway": {
+        "title": "MeshCore-Gateway-Companion",
+        "description": "Home Assistant mit einer Companion-Sitzung des Gateways verbinden. Port 5000 ist für die Verwaltung reserviert; hier 5001, 5002 oder 5003 verwenden.",
+        "data": {
+          "host": "Gateway-Host",
+          "port": "Companion-Sitzungsport (5001-5003)"
         }
       }
     },
@@ -146,6 +155,12 @@
     }
   },
   "entity": {
+    "select": {
+      "status_target": {
+        "name": "Statusabfrage: {word}",
+        "state": {"disabled": "Aus (Aktionswort)"}
+      }
+    },
     "sensor": {
       "battery_voltage": {
         "name": "Batteriespannung"
