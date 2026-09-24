@@ -6,16 +6,19 @@ from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import callback
 
-from .const import DOMAIN, CONF_ACTION_RESPONSES, EVENT_RECEIVED
+from .const import DOMAIN, CONF_ACTION_RESPONSES, EVENT_RECEIVED, CONF_MODE, MODE_GATEWAY_COMPANION
 from .contact_learning import LEARNING_KEYS
 from .management import ContactInputError
 from .message import public_key
+from .gateway_transport import tls_context, certificate_fingerprint
 
 PANEL = "meshcore-connect"
 DATA = DOMAIN + "_panel"
 BASE = "/meshcore_connect_panel"
 SETTINGS = (*LEARNING_KEYS, CONF_ACTION_RESPONSES)
 SCHEMAS = {
+    "gateway_tls": vol.Schema({vol.Required("enabled"): bool,
+                               vol.Required("certificate"): vol.All(str, vol.Length(max=4096))}),
     "refresh": vol.Schema({}),
     "add": vol.Schema({vol.Required("public_key"): str, vol.Required("name"): str,
                        vol.Required("kind"): vol.In((1, 2, 3)),
@@ -41,13 +44,29 @@ def snapshot(hass):
                         "contacts": [{**contact, "allowed": contact["public_key"] in hub.allowed}
                                      for contact in hub.contact_list()],
                         "words": hub.words, "messages": list(hub.message_history),
-                        "settings": {**hub.learning, CONF_ACTION_RESPONSES: hub.action_responses.enabled}})
+                        "settings": {**hub.learning, CONF_ACTION_RESPONSES: hub.action_responses.enabled},
+                        "gateway_tls": {"enabled": hub.entry.data.get("gateway_tls", False),
+                                        "certificate": hub.entry.data.get("gateway_certificate", ""),
+                                        "fingerprint": certificate_fingerprint(hub.entry.data.get("gateway_certificate", ""))}
+                            if hub.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION else None})
     return {"entries": entries}
 
 
 async def mutate(hub, action, values):
     values = SCHEMAS[action](values)
-    if action == "refresh":
+    if action == "gateway_tls":
+        if hub.entry.data.get(CONF_MODE) != MODE_GATEWAY_COMPANION:
+            raise ContactInputError("invalid_gateway_tls")
+        try:
+            await hub.hass.async_add_executor_job(tls_context, values["enabled"], values["certificate"])
+        except ValueError as error:
+            raise ContactInputError("invalid_gateway_tls") from error
+        async with hub.lock:
+            await hub._disconnect()
+            hub.hass.config_entries.async_update_entry(hub.entry, data={**hub.entry.data,
+                "gateway_tls": values["enabled"], "gateway_certificate": values["certificate"]})
+        hub.hass.async_create_task(hub.async_request_refresh())
+    elif action == "refresh":
         await hub.refresh_contacts()
     elif action == "add":
         key = public_key(values["public_key"])

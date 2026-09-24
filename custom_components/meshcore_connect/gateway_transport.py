@@ -5,6 +5,52 @@ import hmac
 import re
 import secrets
 import struct
+import ssl
+import base64
+
+
+class GatewayTlsError(ConnectionError):
+    """TLS failed closed; reconnecting without TLS is never attempted."""
+
+
+def certificate_der(pem):
+    if not isinstance(pem, str) or len(pem) > 4096:
+        raise ValueError("A single public PEM certificate is required")
+    match = re.fullmatch(r"\s*-----BEGIN CERTIFICATE-----\s*([A-Za-z0-9+/=\s]+?)\s*-----END CERTIFICATE-----\s*", pem)
+    if not match:
+        raise ValueError("A single public PEM certificate is required; no private keys")
+    try:
+        der = base64.b64decode(re.sub(r"\s", "", match[1]), validate=True)
+    except ValueError:
+        raise ValueError("Invalid certificate encoding") from None
+    if not 128 <= len(der) <= 3072:
+        raise ValueError("Invalid certificate size")
+    return der
+
+
+def tls_context(enabled, certificate):
+    if type(enabled) is not bool or not isinstance(certificate, str):
+        raise ValueError("Invalid gateway TLS settings")
+    if not certificate:
+        if enabled:
+            raise ValueError("Import the gateway certificate before enabling TLS")
+        return None, None
+    der = certificate_der(certificate)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    # DHCP addresses can change. Trust only this leaf and additionally compare
+    # its exact DER bytes before any application authentication is sent.
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_REQUIRED
+    try:
+        context.load_verify_locations(cadata=ssl.DER_cert_to_PEM_cert(der))
+    except (ssl.SSLError, ValueError):
+        raise ValueError("Invalid gateway X.509 certificate") from None
+    return (context, der) if enabled else (None, None)
+
+
+def certificate_fingerprint(pem):
+    return hashlib.sha256(certificate_der(pem)).hexdigest() if pem else ""
 
 
 class GatewayAuthError(ConnectionError):
@@ -34,9 +80,10 @@ def validate_endpoint(host, port, key):
 
 
 class GatewayTransport:
-    def __init__(self, host, port, key):
+    def __init__(self, host, port, key, *, tls=False, certificate=""):
         validate_endpoint(host, port, key)
         self.host, self.port, self._key = host, port, key
+        self._tls, self._certificate = tls, certificate
         self.reader = self.writer = None
         self._reader_task = self._keepalive_task = None
         self._lock = asyncio.Lock()
@@ -61,8 +108,23 @@ class GatewayTransport:
 
     async def connect(self):
         try:
-            async with asyncio.timeout(12):
-                self.reader, self.writer = await asyncio.open_connection(self.host, self.port, limit=701)
+            try:
+                context, pinned = await asyncio.to_thread(tls_context, self._tls, self._certificate)
+            except ValueError as error:
+                raise GatewayTlsError("Invalid gateway TLS certificate or settings") from error
+            async with asyncio.timeout(35 if context else 12):
+                options = {"ssl": context, "server_hostname": self.host, "ssl_handshake_timeout": 30,
+                           "ssl_shutdown_timeout": 2} if context else {}
+                try:
+                    self.reader, self.writer = await asyncio.open_connection(self.host, self.port, limit=701, **options)
+                except (ssl.SSLError, ConnectionResetError, ConnectionAbortedError, TimeoutError) as error:
+                    if context:
+                        raise GatewayTlsError("Gateway TLS handshake failed; check the imported certificate and gateway TLS setting") from error
+                    raise
+                if context:
+                    session = self.writer.get_extra_info("ssl_object")
+                    if session is None or not hmac.compare_digest(session.getpeercert(binary_form=True), pinned):
+                        raise GatewayTlsError("Gateway certificate changed; import and verify the new certificate")
                 if await self._line() != "RAK-GATEWAY 1":
                     raise GatewayProtocolError("This endpoint is not a RAK raw gateway")
                 nonce = secrets.token_bytes(16)
@@ -189,4 +251,4 @@ class GatewayTransport:
                 async with asyncio.timeout(2):
                     await self.writer.wait_closed()
             except (OSError, TimeoutError):
-                pass
+                self.writer.transport.abort()

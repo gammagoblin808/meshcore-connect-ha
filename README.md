@@ -112,10 +112,24 @@ contacts; removing the integration deletes its private companion store. USB and
 normal TCP entries are not converted. Existing contacts in the RAK are not
 implicitly imported or overwritten.
 
-Use only a trusted, isolated LAN. PSK challenge authentication does not encrypt
-or authenticate the subsequent gateway stream. Do not expose these ports to the
+Gateway TLS is available with the matching TLS-capable gateway firmware. Export
+the public PEM certificate from **TLS · Dienstverbindungen** on the gateway over
+a trusted management network. In the HA sidebar, select the gateway companion,
+then **Settings > TLS to gateway**, import the certificate and save. Import/export
+also works while that companion is offline. Initial setup and reconfiguration
+accept the same certificate as PEM text. Enable TLS at both ends. The service key
+still authenticates HA inside TLS. Certificate/expiry errors fail closed; there
+is no automatic plaintext fallback. Exact certificate pinning supports changing
+DHCP addresses. Reimport only after deliberately verifying a replacement certificate.
+Identity, contacts, favorites and allowed contacts are not changed by TLS settings.
+
+Without TLS, use only a trusted, isolated LAN. PSK challenge authentication alone
+does not encrypt or authenticate the subsequent gateway stream. Do not expose these ports to the
 Internet. Configure and enable the service port in the gateway web interface
 before connecting HA. HA cannot unlock a disabled port or change the admin key.
+Gateway web administration uses HTTPS with its self-signed certificate on port
+5000. Raw app administration and the minimal TCP firmware updater remain separate
+plaintext management paths. Home Assistant's own HTTPS configuration is unchanged.
 Gateway firmware 26.09.60 provides a login page and an authenticated admin-password
 setting; unconfigured gateways start with `admin`, while existing keys stay valid.
 

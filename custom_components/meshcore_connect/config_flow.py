@@ -8,7 +8,7 @@ from homeassistant.helpers import selector
 from .client import connect
 from .const import CONF_ALLOWED, CONF_WORDS, DOMAIN, CONF_MODE, MODE_GATEWAY_COMPANION
 from .gateway_state import GatewayState
-from .gateway_transport import GatewayAuthError, GatewayProtocolError
+from .gateway_transport import GatewayAuthError, GatewayProtocolError, GatewayTlsError
 from .message import allowed_keys, public_key
 from .management import ContactInputError
 from .contact_learning import LEARNING_KEYS, learning_options
@@ -60,6 +60,8 @@ class MeshCoreConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     return self.async_update_reload_and_abort(entry, data_updates=data,
                         reason="reauth_successful" if self.source == "reauth" else "reconfigure_successful")
                 return self.async_create_entry(title=data["companion_name"], data={**data, CONF_ALLOWED: []})
+            except GatewayTlsError:
+                errors["base"] = "gateway_tls_failed"
             except GatewayAuthError:
                 errors["base"] = "invalid_auth"
             except GatewayProtocolError:
@@ -78,6 +80,8 @@ class MeshCoreConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("port", default=defaults.get("port", 5001)): vol.All(vol.Coerce(int), vol.In((5001, 5002, 5003))),
             vol.Required("service_key"): selector.TextSelector({"type": "password"}),
             vol.Required("companion_name", default=defaults.get("companion_name", "Home Assistant")): str,
+            vol.Optional("gateway_tls", default=defaults.get("gateway_tls", False)): bool,
+            vol.Optional("gateway_certificate", default=defaults.get("gateway_certificate", "")): selector.TextSelector({"multiline": True}),
         })
         return self.async_show_form(step_id="gateway", data_schema=schema, errors=errors)
 

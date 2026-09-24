@@ -11,12 +11,14 @@
       },
       "gateway": {
         "title": "Compagnon HA via passerelle RAK",
-        "description": "L’identité radio et les contacts sont stockés dans HA. Utilisez la clé du port de service activé, pas la clé administrateur. Réseau local de confiance uniquement : connexion non chiffrée.",
+        "description": "L’identité radio et les contacts sont stockés dans HA. Utilisez la clé de service, pas la clé administrateur. Pour TLS, activez TLS sur la passerelle et importez son certificat public PEM. Vérifiez le certificat par un canal de confiance. Sans TLS, réseau local de confiance uniquement.",
         "data": {
           "host": "Adresse",
           "port": "Port de service",
           "service_key": "Clé de service",
-          "companion_name": "Nom du compagnon"
+          "companion_name": "Nom du compagnon",
+          "gateway_tls": "TLS vers la passerelle",
+          "gateway_certificate": "Certificat de la passerelle (PEM)"
         }
       },
       "serial": {
@@ -34,6 +36,7 @@
       }
     },
     "error": {
+      "gateway_tls_failed": "Échec TLS. Vérifier TLS sur la passerelle et le certificat importé. Aucun repli vers TCP non chiffré.",
       "invalid_auth": "Clé de service refusée par la passerelle.",
       "not_gateway": "Ce point de connexion ne parle pas le protocole de passerelle radio brute.",
       "gateway_unavailable": "Passerelle indisponible. Activez le port de service et déconnectez les autres clients de ce port.",

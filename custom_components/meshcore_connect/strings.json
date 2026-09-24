@@ -11,12 +11,14 @@
       },
       "gateway": {
         "title": "HA companion via RAK gateway",
-        "description": "Own companion identity and contacts are stored in HA. Use the service key for the enabled gateway port, not the admin key. Trusted LAN only; the link is not encrypted.",
+        "description": "Own companion identity and contacts are stored in HA. Use the service key, not the admin key. For TLS, enable TLS on the gateway and import its public PEM certificate. Verify the certificate over a trusted channel. Without TLS, use a trusted LAN only.",
         "data": {
           "host": "Host",
           "port": "Service port",
           "service_key": "Service key",
-          "companion_name": "Companion name"
+          "companion_name": "Companion name",
+          "gateway_tls": "TLS to gateway",
+          "gateway_certificate": "Gateway certificate (PEM)"
         }
       },
       "serial": {
@@ -34,6 +36,7 @@
       }
     },
     "error": {
+      "gateway_tls_failed": "TLS failed. Check gateway TLS and the imported certificate. No fallback to unencrypted TCP.",
       "invalid_auth": "Gateway service key rejected.",
       "not_gateway": "This endpoint is not a supported raw gateway.",
       "gateway_unavailable": "Gateway unavailable. Enable the service port and release any other client using it.",

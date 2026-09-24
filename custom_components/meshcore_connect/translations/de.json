@@ -11,12 +11,14 @@
       },
       "gateway": {
         "title": "HA-Companion über RAK-Gateway",
-        "description": "Eigene Funkidentität und Kontakte werden in HA gespeichert. Dienstschlüssel des freigeschalteten Gateway-Ports verwenden, nicht den Adminschlüssel. Nur im vertrauenswürdigen LAN: Die Verbindung ist unverschlüsselt.",
+        "description": "Eigene Funkidentität und Kontakte werden in HA gespeichert. Dienstschlüssel verwenden, nicht den Adminschlüssel. Für TLS am Gateway TLS aktivieren und dessen öffentliches PEM-Zertifikat importieren. Zertifikat über einen vertrauenswürdigen Weg prüfen. Ohne TLS nur im vertrauenswürdigen LAN verwenden.",
         "data": {
           "host": "Adresse",
           "port": "Dienst-Port",
           "service_key": "Dienstschlüssel",
-          "companion_name": "Companion-Name"
+          "companion_name": "Companion-Name",
+          "gateway_tls": "TLS zum Gateway",
+          "gateway_certificate": "Gateway-Zertifikat (PEM)"
         }
       },
       "serial": {
@@ -34,6 +36,7 @@
       }
     },
     "error": {
+      "gateway_tls_failed": "TLS fehlgeschlagen. Gateway-TLS und importiertes Zertifikat prüfen. Kein Rückfall auf unverschlüsseltes TCP.",
       "invalid_auth": "Der Gateway-Dienstschlüssel wurde abgelehnt.",
       "not_gateway": "Dieser Anschluss ist kein unterstütztes Rohfunk-Gateway.",
       "gateway_unavailable": "Gateway nicht erreichbar. Dienst-Port freischalten und andere Clients auf diesem Port trennen.",

@@ -24,6 +24,9 @@ const translations = {
     stale_word: 'Der Befehl wurde inzwischen geändert. Liste aktualisieren und erneut auswählen.',
     feed: 'Nachrichten', noMessages: 'Noch keine Nachrichten empfangen.', direct: 'Direkt', channel: 'Kanal',
     live: 'Live', feedError: 'Live-Verbindung unterbrochen', unknown: 'Unbekannt',
+    tls: 'TLS zum Gateway', certificateImport: 'Zertifikat importieren', certificateExport: 'Zertifikat exportieren',
+    tlsSave: 'TLS-Einstellungen speichern', tlsDisable: 'TLS ausschalten? Diese Verbindung wird unverschlüsselt.',
+    invalid_gateway_tls: 'Ein öffentliches Gateway-Zertifikat im PEM-Format auswählen (maximal 4 KiB), keinen privaten Schlüssel.',
   },
   en: {
     contacts: 'Contacts', add: 'Add contact', settings: 'Settings', device: 'Companion', search: 'Name or public key',
@@ -47,6 +50,9 @@ const translations = {
     stale_word: 'The command has changed. Refresh and select it again.',
     feed: 'Messages', noMessages: 'No messages received yet.', direct: 'Direct', channel: 'Channel',
     live: 'Live', feedError: 'Live connection interrupted', unknown: 'Unknown',
+    tls: 'TLS to gateway', certificateImport: 'Import certificate', certificateExport: 'Export certificate',
+    tlsSave: 'Save TLS settings', tlsDisable: 'Disable TLS? This connection will be unencrypted.',
+    invalid_gateway_tls: 'Select a public gateway PEM certificate (maximum 4 KiB), not a private key.',
   },
   fr: {
     contacts: 'Contacts', add: 'Ajouter un contact', settings: 'Paramètres', device: 'Compagnon', search: 'Nom ou clé publique',
@@ -70,6 +76,9 @@ const translations = {
     stale_word: 'La commande a changé. Actualiser et la sélectionner à nouveau.',
     feed: 'Messages', noMessages: 'Aucun message reçu.', direct: 'Direct', channel: 'Canal',
     live: 'En direct', feedError: 'Connexion en direct interrompue', unknown: 'Inconnu',
+    tls: 'TLS vers la passerelle', certificateImport: 'Importer un certificat', certificateExport: 'Exporter le certificat',
+    tlsSave: 'Enregistrer TLS', tlsDisable: 'Désactiver TLS ? La connexion ne sera plus chiffrée.',
+    invalid_gateway_tls: 'Choisir un certificat public PEM de la passerelle (4 Kio maximum), pas une clé privée.',
   },
 };
 const settings = ['learn_contacts', 'learn_repeaters', 'learn_favorites', 'learn_allowed', 'action_responses'];
@@ -162,7 +171,11 @@ class MeshCoreConnectPanel extends HTMLElement {
           <label class="check"><input name="favorite" type="checkbox">${t.favorite}</label><label class="check"><input name="allowed" type="checkbox">${t.allowed}</label>
           <button class="primary" type="submit"><ha-icon icon="mdi:account-plus"></ha-icon>${t.save}</button>
         </form></fieldset></div></ha-card>
-        <ha-card id="settings-card"><div class="card-head"><h2>${t.settings}</h2></div><div class="body"><fieldset id="settings-fields"><div id="settings-form"></div></fieldset></div></ha-card></div>
+        <ha-card id="settings-card"><div class="card-head"><h2>${t.settings}</h2></div><div class="body"><fieldset id="settings-fields"><div id="settings-form"></div></fieldset>
+          <form id="tls-form" hidden><fieldset id="tls-fields"><label class="check"><input id="tls-enabled" type="checkbox">${t.tls}</label>
+          <label>${t.certificateImport}<input id="tls-file" type="file" accept=".pem,.crt"></label><code id="tls-fingerprint"></code>
+          <div class="form-actions"><button id="tls-save" type="submit"><ha-icon icon="mdi:content-save"></ha-icon>${t.tlsSave}</button><button id="tls-export" type="button"><ha-icon icon="mdi:download"></ha-icon>${t.certificateExport}</button></div></fieldset></form>
+        </div></ha-card></div>
       </div>
       <div id="activity" class="activity">
         <ha-card id="commands-card"><div class="card-head"><h2>${t.commands}</h2></div><div id="words"></div>
@@ -197,11 +210,35 @@ class MeshCoreConnectPanel extends HTMLElement {
     this.$('search').oninput = () => this.renderContacts();
     this.$('device').onchange = () => {
       const form = this.$('add-form');
-      const dirty = form.elements.name.value || form.elements.public_key.value || form.elements.favorite.checked || form.elements.allowed.checked || form.elements.kind.value !== '1' || this.$('word-text').value;
+      const dirty = this.tlsDirty || form.elements.name.value || form.elements.public_key.value || form.elements.favorite.checked || form.elements.allowed.checked || form.elements.kind.value !== '1' || this.$('word-text').value;
       if (dirty && !window.confirm(t.discard)) { this.$('device').value = this.entryId; return; }
-      this.entryId = this.$('device').value; form.reset(); this.resetWord(); this.$('search').value = ''; this.notice(''); this.render();
+      this.entryId = this.$('device').value; this.tlsDirty = false; form.reset(); this.resetWord(); this.$('search').value = ''; this.notice(''); this.render();
     };
     this.$('word-cancel').onclick = () => this.resetWord();
+    this.$('tls-enabled').onchange = () => { this.tlsDirty = true; };
+    this.$('tls-file').onchange = async event => {
+      const input = event.target, file = input.files[0], entryId = this.entryId; if (!file) return;
+      try {
+        if (file.size > 4096) throw Error();
+        const pem = await file.text();
+        if (entryId !== this.entryId) return;
+        if (!/^\s*-----BEGIN CERTIFICATE-----\s*[A-Za-z0-9+/=\s]+\s*-----END CERTIFICATE-----\s*$/.test(pem)) throw Error();
+        this.tlsCertificate = pem.trim() + '\n'; this.tlsDirty = true;
+        this.$('tls-fingerprint').textContent = file.name;
+        this.controls();
+      } catch (_) { this.notice(t.invalid_gateway_tls, true); }
+      input.value = '';
+    };
+    this.$('tls-form').onsubmit = async event => {
+      event.preventDefault(); const enabled = this.$('tls-enabled').checked;
+      if (this.selected?.gateway_tls?.enabled && !enabled && !confirm(t.tlsDisable)) return;
+      if (await this.request('gateway_tls', {enabled, certificate: this.tlsCertificate || ''})) { this.tlsDirty = false; this.render(); }
+    };
+    this.$('tls-export').onclick = () => {
+      if (!this.tlsCertificate) return;
+      const url = URL.createObjectURL(new Blob([this.tlsCertificate], {type: 'application/x-pem-file'}));
+      const link = this.node('a'); link.href = url; link.download = 'meshcore-gateway.pem'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
     this.$('word-form').onsubmit = async event => {
       event.preventDefault();
       if (await this.request('word_save', {slot: this.wordSlot || null, original: this.wordOriginal ?? null,
@@ -259,6 +296,8 @@ class MeshCoreConnectPanel extends HTMLElement {
     this.$('add-fields').disabled = this.busy || !entry?.connected;
     this.$('settings-fields').disabled = this.busy || !entry;
     this.$('word-fields').disabled = this.busy || !entry;
+    this.$('tls-fields').disabled = this.busy || !entry?.gateway_tls;
+    this.$('tls-export').disabled = this.busy || !this.tlsCertificate;
     this.shadowRoot.querySelectorAll('.word button').forEach(el => { el.disabled = this.busy || !entry; });
     this.shadowRoot.querySelectorAll('.contact button,.contact input').forEach(el => { el.disabled = this.busy || !entry?.connected; });
   }
@@ -269,6 +308,12 @@ class MeshCoreConnectPanel extends HTMLElement {
     this.$('no-device').hidden = !!entry;
     this.renderViews();
     this.$('status').textContent = entry ? this.t[entry.connected ? 'online' : 'offline'] : '';
+    this.$('tls-form').hidden = !entry?.gateway_tls;
+    if (!this.tlsDirty) {
+      this.tlsCertificate = entry?.gateway_tls?.certificate || '';
+      this.$('tls-enabled').checked = !!entry?.gateway_tls?.enabled;
+      this.$('tls-fingerprint').textContent = entry?.gateway_tls?.fingerprint ? 'SHA-256: ' + entry.gateway_tls.fingerprint : '';
+    }
     this.shadowRoot.querySelectorAll('[data-setting]').forEach(input => { input.checked = !!entry?.settings[input.dataset.setting]; });
     this.renderContacts(); this.renderWords(); this.renderMessages(); this.controls();
   }

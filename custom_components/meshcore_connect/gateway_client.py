@@ -27,7 +27,8 @@ class GatewayClient:
 
     def __init__(self, data, state):
         self.state = state
-        self.transport = GatewayTransport(data["host"], data["port"], data["service_key"])
+        self.transport = GatewayTransport(data["host"], data["port"], data["service_key"],
+            tls=data.get("gateway_tls", False), certificate=data.get("gateway_certificate", ""))
         self.name = data.get("companion_name", "Home Assistant")
         if not self.name.strip() or "\0" in self.name or len(self.name.encode("utf-8")) > 31:
             raise ValueError("Invalid companion name")
