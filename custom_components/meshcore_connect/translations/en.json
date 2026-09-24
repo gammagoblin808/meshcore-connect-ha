@@ -53,6 +53,7 @@
       "init": {
         "title": "MeshCore Connect",
         "menu_options": {
+          "contact_add": "Add contact manually",
           "allowed": "Allowed contacts",
           "contacts": "Device contacts",
           "channels": "Device channels",
@@ -75,12 +76,12 @@
       },
       "contact_learning": {
         "title": "Automatic learning",
-        "description": "Only new contacts are added. Existing favorites are never overwritten or evicted. Warning: automatically allowed contacts can trigger HA actions. This permission is off by default.",
+        "description": "All learning options are off by default. Only explicitly enabled options import new contacts. Existing favorites are preserved. Automatically allowed contacts may trigger HA actions.",
         "data": {
           "learn_contacts": "Automatically learn contacts",
           "learn_repeaters": "Automatically learn repeaters",
-          "learn_favorites": "Save new contacts as favorites",
-          "learn_allowed": "Automatically allow HA actions for new contacts"
+          "learn_favorites": "Save automatically learned contacts as favorites",
+          "learn_allowed": "Allow HA actions for automatically learned contacts"
         }
       },
       "contact_add": {
@@ -164,12 +165,18 @@
       }
     },
     "error": {
-      "invalid_key": "Use complete 64-character hexadecimal public keys.",
+      "invalid_key": "Enter the full public key with 64 hexadecimal characters.",
       "cannot_connect": "Companion unavailable. Check the connection and whether another app is using it.",
       "device_error": "The device could not apply the change. Check the connection, values and available storage; reopen this menu to refresh its contents.",
       "confirm_required": "Confirm removal to continue.",
       "word_exists": "This word already exists.",
-      "invalid_word": "Enter a nonempty word or phrase (maximum 130 UTF-8 bytes), without line breaks."
+      "invalid_word": "Enter a nonempty word or phrase (maximum 130 UTF-8 bytes), without line breaks.",
+      "invalid_contact_name": "Enter a name containing 1 to 31 UTF-8 bytes.",
+      "invalid_contact_type": "Select companion, repeater or room server.",
+      "invalid_contact": "Invalid contact input.",
+      "contact_exists": "This public key is already saved. Use the existing contact's Favorite and Allowed switches.",
+      "contact_busy": "The contact is being saved. Please wait.",
+      "contact_save_failed": "Contact could not be confirmed. Check the connection and contact list. Your input is retained."
     },
     "abort": {
       "device_error": "The device could not apply the change. Check the connection, values and available storage; reopen this menu to refresh its contents."
@@ -179,7 +186,17 @@
     "select": {
       "status_target": {
         "name": "Status query: {word}",
-        "state": {"disabled": "Off (action word)"}
+        "state": {
+          "disabled": "Off (action word)"
+        }
+      },
+      "new_contact_type": {
+        "name": "New contact: device type",
+        "state": {
+          "1": "Companion",
+          "2": "Repeater",
+          "3": "Room server"
+        }
       }
     },
     "sensor": {
@@ -223,6 +240,9 @@
       },
       "refresh_contacts": {
         "name": "Refresh contacts and favorites"
+      },
+      "save_contact": {
+        "name": "Save contact"
       }
     },
     "switch": {
@@ -236,16 +256,22 @@
         "name": "Automatically learn repeaters"
       },
       "learn_favorites": {
-        "name": "Save new contacts as favorites"
+        "name": "Save automatically learned contacts as favorites"
       },
       "learn_allowed": {
-        "name": "Automatically allow HA actions for new contacts"
+        "name": "Allow HA actions for automatically learned contacts"
       },
       "allowed_contact": {
         "name": "Allowed: {contact}"
       },
       "action_responses": {
         "name": "Send action confirmations"
+      },
+      "new_contact_favorite": {
+        "name": "New contact: save as favorite"
+      },
+      "new_contact_allowed": {
+        "name": "New contact: allow HA actions"
       }
     },
     "text": {
@@ -254,6 +280,12 @@
       },
       "edit_word": {
         "name": "Word: {word}"
+      },
+      "new_contact_name": {
+        "name": "New contact: name"
+      },
+      "new_contact_public_key": {
+        "name": "New contact: public key"
       }
     }
   },
@@ -308,6 +340,29 @@
           "name": "Message"
         }
       }
+    }
+  },
+  "exceptions": {
+    "invalid_key": {
+      "message": "Enter the full public key with 64 hexadecimal characters."
+    },
+    "invalid_contact_name": {
+      "message": "Enter a name containing 1 to 31 UTF-8 bytes."
+    },
+    "invalid_contact_type": {
+      "message": "Select companion, repeater or room server."
+    },
+    "invalid_contact": {
+      "message": "Invalid contact input."
+    },
+    "contact_exists": {
+      "message": "This public key is already saved. Use the existing contact's Favorite and Allowed switches."
+    },
+    "contact_busy": {
+      "message": "The contact is being saved. Please wait."
+    },
+    "contact_save_failed": {
+      "message": "Contact could not be confirmed. Check the connection and contact list. Your input is retained."
     }
   }
 }

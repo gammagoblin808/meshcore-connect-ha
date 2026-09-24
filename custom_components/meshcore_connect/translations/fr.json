@@ -53,6 +53,7 @@
       "init": {
         "title": "MeshCore Connect",
         "menu_options": {
+          "contact_add": "Ajouter un contact manuellement",
           "allowed": "Contacts autorisés",
           "contacts": "Contacts de l’appareil",
           "channels": "Canaux de l’appareil",
@@ -75,12 +76,12 @@
       },
       "contact_learning": {
         "title": "Apprentissage automatique",
-        "description": "Seuls les nouveaux contacts sont ajoutés. Les favoris existants ne sont jamais remplacés ni supprimés. Attention : les contacts autorisés automatiquement peuvent déclencher des actions HA. Cette autorisation est désactivée par défaut.",
+        "description": "Toutes les options d'apprentissage sont désactivées par défaut. Seules les options activées explicitement importent de nouveaux contacts. Les favoris existants sont conservés. Les contacts autorisés automatiquement peuvent déclencher des actions HA.",
         "data": {
           "learn_contacts": "Apprendre les contacts automatiquement",
           "learn_repeaters": "Apprendre les répéteurs automatiquement",
-          "learn_favorites": "Enregistrer les nouveaux contacts comme favoris",
-          "learn_allowed": "Autoriser automatiquement les actions HA des nouveaux contacts"
+          "learn_favorites": "Enregistrer les contacts appris automatiquement comme favoris",
+          "learn_allowed": "Autoriser les actions HA pour les contacts appris automatiquement"
         }
       },
       "contact_add": {
@@ -164,12 +165,18 @@
       }
     },
     "error": {
-      "invalid_key": "Utiliser des clés publiques complètes de 64 caractères hexadécimaux.",
+      "invalid_key": "Saisir la clé publique complète de 64 caractères hexadécimaux.",
       "cannot_connect": "Compagnon indisponible. Vérifier la connexion et les autres applications.",
       "device_error": "Modification impossible. Vérifier la connexion, les valeurs et l’espace disponible ; rouvrir ce menu pour actualiser son contenu.",
       "confirm_required": "Confirmer la suppression pour continuer.",
       "word_exists": "Ce mot existe déjà.",
-      "invalid_word": "Saisissez un mot ou une phrase (130 octets UTF-8 maximum), sans saut de ligne."
+      "invalid_word": "Saisissez un mot ou une phrase (130 octets UTF-8 maximum), sans saut de ligne.",
+      "invalid_contact_name": "Saisir un nom de 1 à 31 octets UTF-8.",
+      "invalid_contact_type": "Choisir compagnon, répéteur ou serveur de salon.",
+      "invalid_contact": "Saisie de contact non valide.",
+      "contact_exists": "Cette clé publique est déjà enregistrée. Utiliser les interrupteurs Favori et Autorisé du contact existant.",
+      "contact_busy": "Enregistrement du contact en cours. Veuillez patienter.",
+      "contact_save_failed": "Le contact n'a pas pu être confirmé. Vérifier la connexion et la liste des contacts. La saisie est conservée."
     },
     "abort": {
       "device_error": "Modification impossible. Vérifier la connexion, les valeurs et l’espace disponible ; rouvrir ce menu pour actualiser son contenu."
@@ -179,7 +186,17 @@
     "select": {
       "status_target": {
         "name": "Etat : {word}",
-        "state": {"disabled": "Desactive (action)"}
+        "state": {
+          "disabled": "Desactive (action)"
+        }
+      },
+      "new_contact_type": {
+        "name": "Nouveau contact : type d'appareil",
+        "state": {
+          "1": "Compagnon",
+          "2": "Répéteur",
+          "3": "Serveur de salon"
+        }
       }
     },
     "sensor": {
@@ -223,6 +240,9 @@
       },
       "refresh_contacts": {
         "name": "Actualiser les contacts et favoris"
+      },
+      "save_contact": {
+        "name": "Enregistrer le contact"
       }
     },
     "switch": {
@@ -236,16 +256,22 @@
         "name": "Apprendre les répéteurs automatiquement"
       },
       "learn_favorites": {
-        "name": "Enregistrer les nouveaux contacts comme favoris"
+        "name": "Enregistrer les contacts appris automatiquement comme favoris"
       },
       "learn_allowed": {
-        "name": "Autoriser automatiquement les actions HA des nouveaux contacts"
+        "name": "Autoriser les actions HA pour les contacts appris automatiquement"
       },
       "allowed_contact": {
         "name": "Autorisé : {contact}"
       },
       "action_responses": {
         "name": "Envoyer les confirmations d’action"
+      },
+      "new_contact_favorite": {
+        "name": "Nouveau contact : enregistrer comme favori"
+      },
+      "new_contact_allowed": {
+        "name": "Nouveau contact : autoriser les actions HA"
       }
     },
     "text": {
@@ -254,6 +280,12 @@
       },
       "edit_word": {
         "name": "Mot : {word}"
+      },
+      "new_contact_name": {
+        "name": "Nouveau contact : nom"
+      },
+      "new_contact_public_key": {
+        "name": "Nouveau contact : clé publique"
       }
     }
   },
@@ -308,6 +340,29 @@
           "name": "Message"
         }
       }
+    }
+  },
+  "exceptions": {
+    "invalid_key": {
+      "message": "Saisir la clé publique complète de 64 caractères hexadécimaux."
+    },
+    "invalid_contact_name": {
+      "message": "Saisir un nom de 1 à 31 octets UTF-8."
+    },
+    "invalid_contact_type": {
+      "message": "Choisir compagnon, répéteur ou serveur de salon."
+    },
+    "invalid_contact": {
+      "message": "Saisie de contact non valide."
+    },
+    "contact_exists": {
+      "message": "Cette clé publique est déjà enregistrée. Utiliser les interrupteurs Favori et Autorisé du contact existant."
+    },
+    "contact_busy": {
+      "message": "Enregistrement du contact en cours. Veuillez patienter."
+    },
+    "contact_save_failed": {
+      "message": "Le contact n'a pas pu être confirmé. Vérifier la connexion et la liste des contacts. La saisie est conservée."
     }
   }
 }

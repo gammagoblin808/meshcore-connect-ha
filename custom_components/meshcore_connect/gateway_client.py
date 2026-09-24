@@ -115,7 +115,7 @@ class GatewayClient:
             old = self.contacts.get(key)
             if old:
                 # Advertisements must never rename or replace a saved favorite.
-                if old.get("flags", 0) & 1:
+                if old.get("flags", 0) & 1 or not accepts_contact(contact, self.learning):
                     return
                 if contact["last_advert"] <= old.get("last_advert", 0):
                     return

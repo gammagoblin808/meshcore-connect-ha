@@ -8,8 +8,8 @@ LEARNING_KEYS = (LEARN_CONTACTS, LEARN_REPEATERS, LEARN_FAVORITES, LEARN_ALLOWED
 
 
 def learning_options(options, gateway=False):
-    return {key: bool(options.get(key, gateway if key in (LEARN_CONTACTS, LEARN_REPEATERS) else False))
-            for key in LEARNING_KEYS}
+    # Discovery, favorites and action permissions always require explicit opt-in.
+    return {key: options.get(key) is True for key in LEARNING_KEYS}
 
 
 def accepts_contact(contact, options):

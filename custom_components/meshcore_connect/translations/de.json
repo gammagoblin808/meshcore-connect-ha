@@ -53,6 +53,7 @@
       "init": {
         "title": "MeshCore Connect",
         "menu_options": {
+          "contact_add": "Kontakt manuell hinzufügen",
           "allowed": "Erlaubte Kontakte",
           "contacts": "Gerätekontakte",
           "channels": "Gerätekanäle",
@@ -75,12 +76,12 @@
       },
       "contact_learning": {
         "title": "Automatisches Lernen",
-        "description": "Nur neue Kontakte werden übernommen. Bestehende Favoriten werden nicht überschrieben oder verdrängt. Achtung: Automatisch erlaubte Kontakte dürfen HA-Aktionen auslösen. Diese Freigabe ist standardmäßig aus.",
+        "description": "Standardmäßig sind alle Lernoptionen aus. Nur ausdrücklich aktivierte Optionen übernehmen neue Kontakte. Bestehende Favoriten bleiben erhalten. Automatisch erlaubte Kontakte dürfen HA-Aktionen auslösen.",
         "data": {
           "learn_contacts": "Kontakte automatisch lernen",
           "learn_repeaters": "Repeater automatisch lernen",
-          "learn_favorites": "Neue Kontakte als Favoriten speichern",
-          "learn_allowed": "Neue Kontakte automatisch für HA-Aktionen erlauben"
+          "learn_favorites": "Automatisch gelernte Kontakte als Favoriten speichern",
+          "learn_allowed": "Automatisch gelernte Kontakte für HA-Aktionen erlauben"
         }
       },
       "contact_add": {
@@ -164,12 +165,18 @@
       }
     },
     "error": {
-      "invalid_key": "Vollständige öffentliche Schlüssel mit 64 Hexadezimalzeichen verwenden.",
+      "invalid_key": "Den vollständigen Public Key mit 64 Hexadezimalzeichen eingeben.",
       "cannot_connect": "Companion nicht verfügbar. Verbindung und Zugriff durch andere Apps prüfen.",
       "device_error": "Die Änderung konnte nicht angewendet werden. Verbindung, Eingaben und freien Speicher prüfen; dieses Menü zum Aktualisieren erneut öffnen.",
       "confirm_required": "Entfernen bestätigen, um fortzufahren.",
       "word_exists": "Dieses Wort existiert bereits.",
-      "invalid_word": "Ein Wort oder eine Wortfolge eingeben (höchstens 130 UTF-8-Bytes), ohne Zeilenumbrüche."
+      "invalid_word": "Ein Wort oder eine Wortfolge eingeben (höchstens 130 UTF-8-Bytes), ohne Zeilenumbrüche.",
+      "invalid_contact_name": "Einen Namen mit 1 bis 31 UTF-8-Bytes eingeben.",
+      "invalid_contact_type": "Companion, Repeater oder Raumserver wählen.",
+      "invalid_contact": "Ungültige Kontakteingabe.",
+      "contact_exists": "Dieser Public Key ist bereits gespeichert. Den vorhandenen Kontakt über seine Favorit- und Erlaubt-Schalter verwalten.",
+      "contact_busy": "Der Kontakt wird gerade gespeichert. Bitte warten.",
+      "contact_save_failed": "Kontakt konnte nicht bestätigt werden. Verbindung und Kontaktliste prüfen. Die Eingaben bleiben erhalten."
     },
     "abort": {
       "device_error": "Die Änderung konnte nicht angewendet werden. Verbindung, Eingaben und freien Speicher prüfen; dieses Menü zum Aktualisieren erneut öffnen."
@@ -179,7 +186,17 @@
     "select": {
       "status_target": {
         "name": "Statusabfrage: {word}",
-        "state": {"disabled": "Aus (Aktionswort)"}
+        "state": {
+          "disabled": "Aus (Aktionswort)"
+        }
+      },
+      "new_contact_type": {
+        "name": "Neuer Kontakt: Gerätetyp",
+        "state": {
+          "1": "Companion",
+          "2": "Repeater",
+          "3": "Raumserver"
+        }
       }
     },
     "sensor": {
@@ -223,6 +240,9 @@
       },
       "refresh_contacts": {
         "name": "Kontakte und Favoriten aktualisieren"
+      },
+      "save_contact": {
+        "name": "Kontakt speichern"
       }
     },
     "switch": {
@@ -236,16 +256,22 @@
         "name": "Repeater automatisch lernen"
       },
       "learn_favorites": {
-        "name": "Neue Kontakte als Favoriten speichern"
+        "name": "Automatisch gelernte Kontakte als Favoriten speichern"
       },
       "learn_allowed": {
-        "name": "Neue Kontakte automatisch für HA-Aktionen erlauben"
+        "name": "Automatisch gelernte Kontakte für HA-Aktionen erlauben"
       },
       "allowed_contact": {
         "name": "Erlaubt: {contact}"
       },
       "action_responses": {
         "name": "Aktionsbestätigungen senden"
+      },
+      "new_contact_favorite": {
+        "name": "Neuer Kontakt: als Favorit speichern"
+      },
+      "new_contact_allowed": {
+        "name": "Neuer Kontakt: HA-Aktionen erlauben"
       }
     },
     "text": {
@@ -254,6 +280,12 @@
       },
       "edit_word": {
         "name": "Wort: {word}"
+      },
+      "new_contact_name": {
+        "name": "Neuer Kontakt: Name"
+      },
+      "new_contact_public_key": {
+        "name": "Neuer Kontakt: Public Key"
       }
     }
   },
@@ -308,6 +340,29 @@
           "name": "Nachricht"
         }
       }
+    }
+  },
+  "exceptions": {
+    "invalid_key": {
+      "message": "Den vollständigen Public Key mit 64 Hexadezimalzeichen eingeben."
+    },
+    "invalid_contact_name": {
+      "message": "Einen Namen mit 1 bis 31 UTF-8-Bytes eingeben."
+    },
+    "invalid_contact_type": {
+      "message": "Companion, Repeater oder Raumserver wählen."
+    },
+    "invalid_contact": {
+      "message": "Ungültige Kontakteingabe."
+    },
+    "contact_exists": {
+      "message": "Dieser Public Key ist bereits gespeichert. Den vorhandenen Kontakt über seine Favorit- und Erlaubt-Schalter verwalten."
+    },
+    "contact_busy": {
+      "message": "Der Kontakt wird gerade gespeichert. Bitte warten."
+    },
+    "contact_save_failed": {
+      "message": "Kontakt konnte nicht bestätigt werden. Verbindung und Kontaktliste prüfen. Die Eingaben bleiben erhalten."
     }
   }
 }

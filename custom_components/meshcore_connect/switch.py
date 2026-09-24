@@ -4,7 +4,7 @@ from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 
-from .entity import CompanionEntity
+from .entity import CompanionEntity, ContactDraftEntity
 from .const import CONF_ACTION_RESPONSES
 from .contact_learning import LEARNING_KEYS
 
@@ -12,6 +12,7 @@ from .contact_learning import LEARNING_KEYS
 async def async_setup_entry(hass, entry, async_add_entities):
     known = set()
     async_add_entities([ActionResponseSwitch(entry.runtime_data, entry)] +
+                       [ContactDraftSwitch(entry.runtime_data, entry, field) for field in ("favorite", "allowed")] +
                        [ContactLearningSwitch(entry.runtime_data, entry, key) for key in LEARNING_KEYS])
 
     @callback
@@ -24,6 +25,22 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     add_contacts()
     entry.async_on_unload(entry.runtime_data.async_add_listener(add_contacts))
+
+
+class ContactDraftSwitch(ContactDraftEntity, SwitchEntity):
+    def __init__(self, hub, entry, field):
+        super().__init__(hub, entry, field)
+        self._attr_icon = "mdi:star" if field == "favorite" else "mdi:account-check"
+
+    @property
+    def is_on(self):
+        return self.coordinator.contact_draft[self.field]
+
+    async def async_turn_on(self, **kwargs):
+        self.set_value(True)
+
+    async def async_turn_off(self, **kwargs):
+        self.set_value(False)
 
 
 class ActionResponseSwitch(CompanionEntity, SwitchEntity):

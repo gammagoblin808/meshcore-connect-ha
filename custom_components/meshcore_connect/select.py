@@ -4,12 +4,13 @@ from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 
-from .entity import CompanionEntity
+from .entity import CompanionEntity, ContactDraftEntity
 from .status_query import CONF_STATUS_QUERIES, DISABLED, DOMAINS
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
     known = set()
+    async_add_entities([ContactDraftType(entry.runtime_data, entry)])
 
     @callback
     def add_words():
@@ -19,6 +20,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     add_words()
     entry.async_on_unload(entry.runtime_data.async_add_listener(add_words))
+
+
+class ContactDraftType(ContactDraftEntity, SelectEntity):
+    _attr_icon = "mdi:devices"
+    _attr_options = ["1", "2", "3"]
+
+    def __init__(self, hub, entry):
+        super().__init__(hub, entry, "type")
+
+    @property
+    def current_option(self):
+        return self.coordinator.contact_draft["type"]
+
+    async def async_select_option(self, option):
+        self.set_value(option)
 
 
 class StatusTarget(CompanionEntity, SelectEntity):

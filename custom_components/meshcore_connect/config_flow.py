@@ -10,6 +10,7 @@ from .const import CONF_ALLOWED, CONF_WORDS, DOMAIN, CONF_MODE, MODE_GATEWAY_COM
 from .gateway_state import GatewayState
 from .gateway_transport import GatewayAuthError, GatewayProtocolError
 from .message import allowed_keys, public_key
+from .management import ContactInputError
 from .contact_learning import LEARNING_KEYS, learning_options
 from .words import configured_words, validate_word, word_options
 
@@ -153,7 +154,7 @@ class MeshCoreOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         return self.async_show_menu(step_id="init", menu_options=[
-            "allowed", "words", "contacts", "channels"])
+            "contact_add", "contacts", "allowed", "words", "channels"])
 
     async def async_step_contacts(self, user_input=None):
         return self.async_show_menu(step_id="contacts", menu_options=[
@@ -220,6 +221,8 @@ class MeshCoreOptionsFlow(config_entries.OptionsFlow):
                 if user_input.get("allowed", False):
                     return self.save(**{CONF_ALLOWED: sorted(set(self.keys()) | {public_key(user_input["public_key"])})})
                 return self.save()
+            except ContactInputError as error:
+                errors["base"] = error.code
             except (OSError, ConnectionError, ValueError):
                 errors["base"] = "device_error"
         schema = vol.Schema({

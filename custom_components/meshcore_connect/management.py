@@ -8,6 +8,16 @@ from .client import checked
 from .message import public_key
 
 
+class ContactInputError(ValueError):
+    def __init__(self, code):
+        super().__init__(code)
+        self.code = code
+
+
+def empty_contact_draft():
+    return {"public_key": "", "name": "", "type": "1", "favorite": False, "allowed": False}
+
+
 def device_name(value):
     if not isinstance(value, str) or not value.strip() or "\0" in value or len(value.encode("utf-8")) > 31:
         raise ValueError("Name must contain 1 to 31 UTF-8 bytes, without NUL")
@@ -15,6 +25,45 @@ def device_name(value):
 
 
 class CompanionManagement:
+    def set_contact_draft_value(self, field, value):
+        if self.contact_draft_saving:
+            raise ContactInputError("contact_busy")
+        if field == "public_key":
+            try:
+                value = public_key(value) if value.strip() else ""
+            except ValueError as error:
+                raise ContactInputError("invalid_key") from error
+        elif field == "name":
+            try:
+                value = device_name(value) if value else ""
+            except ValueError as error:
+                raise ContactInputError("invalid_contact_name") from error
+        elif field == "type":
+            if value not in ("1", "2", "3"):
+                raise ContactInputError("invalid_contact_type")
+        elif field in ("favorite", "allowed"):
+            if type(value) is not bool:
+                raise ContactInputError("invalid_contact")
+        else:
+            raise ContactInputError("invalid_contact")
+        self.contact_draft[field] = value
+        self.async_update_listeners()
+
+    async def save_contact_draft(self):
+        if self.contact_draft_saving:
+            raise ContactInputError("contact_busy")
+        draft = self.contact_draft.copy()
+        self.contact_draft_saving = True
+        self.async_update_listeners()
+        try:
+            await self.add_contact(draft["public_key"], draft["name"], int(draft["type"]), draft["favorite"])
+            if draft["allowed"]:
+                self.set_allowed(draft["public_key"], True)
+            self.contact_draft = empty_contact_draft()
+        finally:
+            self.contact_draft_saving = False
+            self.async_update_listeners()
+
     def require_client(self):
         if not self.client or not self.client.is_connected or self.stopping:
             raise ConnectionError("Companion is disconnected")
@@ -45,14 +94,21 @@ class CompanionManagement:
             return self.contact_list(favorites_only)
 
     async def add_contact(self, key, name, kind=1, favorite=False):
-        key, name = public_key(key), device_name(name)
+        try:
+            key = public_key(key)
+        except ValueError as error:
+            raise ContactInputError("invalid_key") from error
+        try:
+            name = device_name(name)
+        except ValueError as error:
+            raise ContactInputError("invalid_contact_name") from error
         if kind not in (1, 2, 3):
-            raise ValueError("Invalid contact type")
+            raise ContactInputError("invalid_contact_type")
         async with self.lock:
             self.require_client()
             await self._read_contacts()
             if key in self.contact_snapshot():
-                raise ValueError("Contact already exists")
+                raise ContactInputError("contact_exists")
             contact = {"public_key": key, "adv_name": name, "type": kind,
                        "flags": int(favorite), "out_path": "", "out_path_len": -1,
                        "out_path_hash_mode": 0, "last_advert": 0, "adv_lat": 0, "adv_lon": 0}

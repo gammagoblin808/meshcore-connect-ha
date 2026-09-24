@@ -4,12 +4,13 @@ from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 
-from .entity import CompanionEntity
+from .entity import CompanionEntity, ContactDraftEntity
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
     known = set()
-    async_add_entities([WordText(entry.runtime_data, entry, None)])
+    async_add_entities([WordText(entry.runtime_data, entry, None)] +
+                       [ContactDraftText(entry.runtime_data, entry, field) for field in ("name", "public_key")])
 
     @callback
     def add_words():
@@ -19,6 +20,22 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     add_words()
     entry.async_on_unload(entry.runtime_data.async_add_listener(add_words))
+
+
+class ContactDraftText(ContactDraftEntity, TextEntity):
+    _attr_native_min = 0
+    _attr_icon = "mdi:account-edit"
+
+    def __init__(self, hub, entry, field):
+        super().__init__(hub, entry, field)
+        self._attr_native_max = 64 if field == "public_key" else 31
+
+    @property
+    def native_value(self):
+        return self.coordinator.contact_draft[self.field]
+
+    async def async_set_value(self, value):
+        self.set_value(value)
 
 
 class WordText(CompanionEntity, TextEntity):

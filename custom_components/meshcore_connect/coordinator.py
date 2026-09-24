@@ -14,12 +14,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .client import checked, connect
 from .const import (CONF_ALLOWED, DOMAIN, EVENT_MESSAGE, EVENT_SOS, EVENT_WORD, EVENT_RECEIVED,
                     CONF_MODE, MODE_GATEWAY_COMPANION)
-from .management import CompanionManagement
+from .management import CompanionManagement, empty_contact_draft
 from .message import public_key, trusted_message
 from .words import configured_words, validate_word, word_options
 from .action_response import ActionResponses
 from .status_query import StatusQueries
-from .contact_learning import (LEARNING_KEYS, LEARN_ALLOWED, LEARN_FAVORITES,
+from .contact_learning import (LEARN_ALLOWED, LEARN_FAVORITES,
                                accepts_contact, learning_options)
 
 LOGGER = logging.getLogger(__name__)
@@ -47,6 +47,8 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         self.status_queries = StatusQueries(self)
         self.discovered = OrderedDict()
         self._learning_applied = None
+        self.contact_draft = empty_contact_draft()
+        self.contact_draft_saving = False
 
     @property
     def learning(self):
@@ -126,14 +128,17 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         self.contacts_at = 0
         await self._wake(event)
 
-    async def _learn_contacts(self):
-        gateway = self.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION
-        policy = self.learning
-        if not gateway and any(key in self.entry.options for key in LEARNING_KEYS):
+    async def _configure_contact_learning(self):
+        if self.entry.data.get(CONF_MODE) != MODE_GATEWAY_COMPANION:
             # Let HA select discoveries. Firmware auto-eviction must not remove favorites.
             if self._learning_applied is not self.client:
                 checked(await self.client.commands.set_manual_add_contacts(True), EventType.OK)
                 self._learning_applied = self.client
+
+    async def _learn_contacts(self):
+        gateway = self.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION
+        policy = self.learning
+        await self._configure_contact_learning()
         # Bound writes per refresh so discovery cannot starve messaging or UI changes.
         for _ in range(8):
             if not self.discovered:
@@ -191,6 +196,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
                     # Subscribe before requesting contacts to avoid fast-response races.
                     self.subscriptions.append(self.client.subscribe(EventType.MESSAGES_WAITING, self._wake))
                     self.subscriptions.append(self.client.subscribe(EventType.NEW_CONTACT, self._contacts_changed))
+                    await self._configure_contact_learning()
                     await self._read_contacts()
                     self.battery_at = 0
                     self.stats_at = 0

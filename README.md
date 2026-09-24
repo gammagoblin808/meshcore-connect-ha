@@ -144,24 +144,31 @@ channel keys and contacts are not written to the RAK.
 
 ### Contact Learning
 
-Under **Configure > Device contacts > Add contact**, enter the full public key,
-name and device type. **Favorite** and **Allow HA actions** are independent options.
-Existing contacts cannot be overwritten by this operation.
+Contacts are managed manually by default. On the HA device page, under
+**Configuration**, enter **New contact: name** and **New contact: public key**,
+select the device type, then press **Save contact**. **New contact: save as
+favorite** and **New contact: allow HA actions** apply only to this one contact;
+both start off. Editing fields alone never adds a contact or enables learning.
+The draft is kept in memory until saving and is cleared after success or reload.
+Connection failures preserve the draft. Existing contacts cannot be overwritten.
+The same form is also the first item under **Configure > Add contact manually**.
 
 **Device contacts > Automatic learning** and the device page expose separate
 switches for learning companions/room servers, learning repeaters, marking new
 contacts as favorites, and permitting HA actions for newly learned contacts.
-Automatic action permission is **off by default**: enabling it trusts newly
+All four learning options are **off by default**, for both gateway and normal
+USB/TCP companions. Each must be explicitly enabled. Automatic permission trusts newly
 discovered senders to trigger configured HA actions. Favoriting alone grants no
 permission. Changing a learning option does not modify existing permissions.
 
 The raw-gateway companion validates signed advertisements before learning and
 saves contacts in HA storage. Advertisements never replace saved favorites, and
 a full contact list does not evict any contact. A normal USB/TCP companion uses
-manual-add firmware mode once learning is configured; HA then imports selected
+manual-add firmware mode whenever HA connects; HA then imports explicitly selected
 discoveries into free slots without changing telemetry or location settings.
-HA must be connected for this managed learning. Existing firmware-managed
-learning is left unchanged until an HA learning option is configured.
+HA must be connected for this managed learning. Existing contacts, favorites and
+permissions are not removed or reset by changing these defaults. Already saved
+unwanted favorites can be switched off individually without affecting other contacts.
 
 Each contact has separate **Favorite** and **Allowed** switches on the device
 page. Explicit changes affect only that contact. A stale favorites dialog does
