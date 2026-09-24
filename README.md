@@ -142,6 +142,26 @@ Connect > Configure**. No contact keys are required during initial connection.
 In raw-gateway mode these same controls manage the local HA companion store;
 channel keys and contacts are not written to the RAK.
 
+### Contact Management Panel
+
+Administrators can open **MeshCore Connect** in the Home Assistant sidebar.
+Select the companion at the top. Three separate cards contain **Contacts**,
+**Add contact**, and **Settings**. Search contacts by name or public key, change
+individual favorite/action permissions, or delete a contact with the trash icon.
+Deletion requires confirmation showing its name and full public key. Only after
+the companion confirms deletion is its HA action permission removed; other
+contacts and favorites remain unchanged. Failed writes are not retried automatically.
+
+The add-contact card accepts a name, public key, and device type. Favorite and
+action permission are opt-in for that contact. Automatic learning remains optional
+and off by default. In gateway mode, contacts live in HA's companion store;
+otherwise changes are written to the connected companion.
+
+This authenticated, administrator-only panel follows HA's light/dark theme.
+The standard HA device page retains its existing entities and HA-controlled
+layout for compatibility. Reload the integration after updating to register the
+sidebar panel, then refresh the browser.
+
 ### Contact Learning
 
 Contacts are managed manually by default. On the HA device page, under

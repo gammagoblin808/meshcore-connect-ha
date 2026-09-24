@@ -18,6 +18,11 @@ class GatewayProtocolError(ConnectionError):
 class GatewayRejectedError(ConnectionError):
     """An explicit rejection is known, unlike an interrupted write."""
 
+    def __init__(self, message="Gateway rejected the operation or radio transmission failed", *, code="rejected"):
+        super().__init__(message)
+        self.code = code if code in {"tx-disabled", "disabled", "airtime", "queue-full", "expired",
+                                    "radio", "packet", "auth", "updating", "duplicate"} else "rejected"
+
 
 def validate_endpoint(host, port, key):
     if not isinstance(host, str) or not host.strip() or any(c.isspace() for c in host):
@@ -113,7 +118,7 @@ class GatewayTransport:
                         future.set_result(None)
                 elif line.startswith("ERR ") or (kind == "TX" and line.startswith(f"FAIL {number} ")):
                     if not future.done():
-                        future.set_exception(GatewayRejectedError("Gateway rejected the operation or radio transmission failed"))
+                        future.set_exception(GatewayRejectedError(code=line.rsplit(" ", 1)[-1]))
                 else:
                     raise GatewayProtocolError("Mismatched gateway response")
         except asyncio.CancelledError:

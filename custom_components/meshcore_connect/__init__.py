@@ -9,6 +9,7 @@ from .const import CONF_MODE, DOMAIN, MODE_STANDARD, MODE_GATEWAY_COMPANION
 from .action_response import automation_actions
 from .coordinator import MeshCoreCoordinator
 from .words import configured_words, word_options
+from .panel import async_setup_panel, async_remove_panel
 
 PLATFORMS = [Platform.SENSOR, Platform.NOTIFY, Platform.BUTTON, Platform.EVENT, Platform.SWITCH, Platform.TEXT, Platform.SELECT]
 
@@ -41,6 +42,7 @@ async def async_setup_entry(hass, entry):
         await hub.async_config_entry_first_refresh()
         entry.runtime_data = hub
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = hub
+        await async_setup_panel(hass)
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         entry.async_on_unload(entry.add_update_listener(async_options_updated))
         hub.messages_ready = True
@@ -48,6 +50,8 @@ async def async_setup_entry(hass, entry):
     except BaseException:
         await hub.close()
         hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+        if not hass.data.get(DOMAIN):
+            async_remove_panel(hass)
         raise
 
     if not hass.services.has_service(DOMAIN, "send_message"):
@@ -103,6 +107,7 @@ async def async_unload_entry(hass, entry):
     await entry.runtime_data.close()
     hass.data[DOMAIN].pop(entry.entry_id, None)
     if not hass.data[DOMAIN]:
+        async_remove_panel(hass)
         hass.services.async_remove(DOMAIN, "send_message")
         hass.services.async_remove(DOMAIN, "get_contacts")
         hass.services.async_remove(DOMAIN, "execute_action")
