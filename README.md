@@ -142,11 +142,12 @@ Connect > Configure**. No contact keys are required during initial connection.
 In raw-gateway mode these same controls manage the local HA companion store;
 channel keys and contacts are not written to the RAK.
 
-### Contact Management Panel
+### Companion Management Panel
 
 Administrators can open **MeshCore Connect** in the Home Assistant sidebar.
-Select the companion at the top. Three separate cards contain **Contacts**,
-**Add contact**, and **Settings**. Search contacts by name or public key, change
+Select the companion at the top, then use the **Contacts**, **Commands**,
+**Messages**, or **Settings** tabs. **Add contact** remains separate from the
+contact list. Search contacts by name or public key, change
 individual favorite/action permissions, or delete a contact with the trash icon.
 Deletion requires confirmation showing its name and full public key. Only after
 the companion confirms deletion is its HA action permission removed; other
@@ -156,6 +157,20 @@ The add-contact card accepts a name, public key, and device type. Favorite and
 action permission are opt-in for that contact. Automatic learning remains optional
 and off by default. In gateway mode, contacts live in HA's companion store;
 otherwise changes are written to the connected companion.
+
+**Commands** edits the same message contents as the device's word entities.
+Add, rename, or delete commands even when the companion is offline. Editing keeps
+the existing event identity and automation links; deleting stops that command's
+events. Changes made in another session are checked before overwriting or deleting.
+Actions still run through HA automations and the existing sender allowlist.
+
+**Messages** shows received direct and channel messages for the selected companion
+live over an administrator-only WebSocket subscription, with reception time and
+sender. The most recent 100 messages per companion are kept in memory, including
+while the panel is closed, and cleared on integration reload or HA restart. This
+is not a persistent archive or an indication that an HA action ran. It uses the
+same received-message events as the device activity view and does not expose
+service keys, channel secrets, or companion identity seeds.
 
 This authenticated, administrator-only panel follows HA's light/dark theme.
 The standard HA device page retains its existing entities and HA-controlled

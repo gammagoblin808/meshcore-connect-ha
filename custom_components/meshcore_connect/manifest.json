@@ -1,7 +1,7 @@
 {
   "domain": "meshcore_connect",
   "name": "MeshCore Connect",
-  "version": "26.09.62",
+  "version": "26.09.64",
   "codeowners": ["@gammagoblin808"],
   "config_flow": true,
   "dependencies": ["panel_custom"],

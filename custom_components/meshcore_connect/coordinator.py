@@ -1,5 +1,5 @@
 import asyncio
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from copy import deepcopy
 from datetime import timedelta
 import logging
@@ -42,6 +42,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         self.device_id = None
         self.stats_at = 0
         self.received_seen = OrderedDict()
+        self.message_history = deque(maxlen=100)
         self.messages_ready = False
         self.action_responses = ActionResponses(self)
         self.status_queries = StatusQueries(self)
@@ -274,14 +275,17 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         prefix = payload.get("pubkey_prefix", "")
         matches = [c for k, c in self.contact_snapshot().items() if prefix and k.startswith(prefix.lower())]
         sender = matches[0].get("adv_name", prefix) if len(matches) == 1 else prefix
-        self.hass.bus.async_fire(EVENT_RECEIVED, {
+        received = {
+            "id": uuid4().hex, "received_at": time.time(),
             "entry_id": self.entry.entry_id, "device_id": self.device_id,
             "name": getattr(self.entry, "title", "MeshCore Connect"),
             "kind": "channel" if channel else "direct", "sender": sender,
             "pubkey_prefix": prefix, "channel_idx": payload.get("channel_idx"),
             "text": text, "sender_timestamp": payload.get("sender_timestamp"),
             "snr": payload.get("SNR"), "rssi": payload.get("RSSI"),
-        })
+        }
+        self.message_history.append(received)
+        self.hass.bus.async_fire(EVENT_RECEIVED, received)
 
     async def _read_stats(self):
         for method, event_type, fields in (

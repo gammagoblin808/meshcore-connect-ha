@@ -1,11 +1,12 @@
-"""Admin-only contact management using HA's authenticated WebSocket connection."""
+"""Admin-only companion management and live messages over HA WebSocket."""
 from pathlib import Path
 
 import voluptuous as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.core import callback
 
-from .const import DOMAIN, CONF_ACTION_RESPONSES
+from .const import DOMAIN, CONF_ACTION_RESPONSES, EVENT_RECEIVED
 from .contact_learning import LEARNING_KEYS
 from .management import ContactInputError
 from .message import public_key
@@ -24,6 +25,11 @@ SCHEMAS = {
     "favorite": vol.Schema({vol.Required("public_key"): str, vol.Required("enabled"): bool}),
     "allowed": vol.Schema({vol.Required("public_key"): str, vol.Required("enabled"): bool}),
     "settings": vol.Schema({vol.Required("key"): vol.In(SETTINGS), vol.Required("enabled"): bool}),
+    "word_save": vol.Schema({vol.Required("text"): str,
+                             vol.Optional("slot", default=None): vol.Any(None, str),
+                             vol.Optional("original", default=None): vol.Any(None, str)}),
+    "word_remove": vol.Schema({vol.Required("slot"): str, vol.Required("original"): str,
+                               vol.Required("confirm"): vol.All(bool, vol.In((True,)))}),
 }
 
 
@@ -34,6 +40,7 @@ def snapshot(hass):
                         "connected": bool(hub.client and hub.client.is_connected and not hub.stopping),
                         "contacts": [{**contact, "allowed": contact["public_key"] in hub.allowed}
                                      for contact in hub.contact_list()],
+                        "words": hub.words, "messages": list(hub.message_history),
                         "settings": {**hub.learning, CONF_ACTION_RESPONSES: hub.action_responses.enabled}})
     return {"entries": entries}
 
@@ -55,6 +62,17 @@ async def mutate(hub, action, values):
         await hub.set_favorite(values["public_key"], values["enabled"])
     elif action == "allowed":
         hub.set_allowed(values["public_key"], values["enabled"])
+    elif action in ("word_save", "word_remove"):
+        slot = values["slot"]
+        if slot is not None and (slot not in hub.words or hub.words[slot] != values["original"]):
+            raise ContactInputError("stale_word")
+        text = values["text"] if action == "word_save" else ""
+        if action == "word_save" and not text.strip():
+            raise ContactInputError("invalid_word")
+        try:
+            hub.set_word(slot, text)
+        except ValueError as error:
+            raise ContactInputError("invalid_word") from error
     else:
         key, enabled = values["key"], values["enabled"]
         hub.hass.config_entries.async_update_entry(hub.entry, options={**hub.entry.options, key: enabled})
@@ -90,6 +108,24 @@ async def ws_panel(hass, connection, msg):
         connection.send_error(msg["id"], "device_error", "Device did not confirm the operation")
 
 
+@websocket_api.websocket_command({vol.Required("type"): DOMAIN + "/panel_messages"})
+@websocket_api.require_admin
+@callback
+def ws_messages(hass, connection, msg):
+    @callback
+    def received(event):
+        data = event.data
+        hub = hass.data.get(DOMAIN, {}).get(data.get("entry_id"))
+        if hub is not None and not hub.stopping:
+            # Only forward records actually accepted by this coordinator.
+            record = next((item for item in hub.message_history if item["id"] == data.get("id")), None)
+            if record is not None:
+                connection.send_event(msg["id"], record)
+
+    connection.subscriptions[msg["id"]] = hass.bus.async_listen(EVENT_RECEIVED, received)
+    connection.send_result(msg["id"])
+
+
 async def async_setup_panel(hass):
     state = hass.data.setdefault(DATA, {})
     if not state.get("registered"):
@@ -99,12 +135,13 @@ async def async_setup_panel(hass):
             StaticPathConfig(BASE + "/logo.png", str(root / "brand/icon.png"), True),
         ])
         websocket_api.async_register_command(hass, ws_panel)
+        websocket_api.async_register_command(hass, ws_messages)
         state["registered"] = True
     if not state.get("visible"):
         await panel_custom.async_register_panel(
             hass, frontend_url_path=PANEL, webcomponent_name="meshcore-connect-panel",
             sidebar_title="MeshCore Connect", sidebar_icon="mdi:radio-handheld",
-            module_url=BASE + "/panel.js?v=26.09.62", require_admin=True)
+            module_url=BASE + "/panel.js?v=26.09.64", require_admin=True)
         state["visible"] = True
 
 
