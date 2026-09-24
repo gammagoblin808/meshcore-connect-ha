@@ -1,7 +1,7 @@
 {
   "domain": "meshcore_connect",
   "name": "MeshCore Connect",
-  "version": "26.09.58",
+  "version": "26.09.60",
   "codeowners": ["@gammagoblin808"],
   "config_flow": true,
   "documentation": "https://github.com/gammagoblin808/meshcore-connect-ha",

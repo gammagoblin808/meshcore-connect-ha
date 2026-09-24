@@ -73,13 +73,24 @@
           "contacts": "Favoris"
         }
       },
+      "contact_learning": {
+        "title": "Apprentissage automatique",
+        "description": "Seuls les nouveaux contacts sont ajoutés. Les favoris existants ne sont jamais remplacés ni supprimés. Attention : les contacts autorisés automatiquement peuvent déclencher des actions HA. Cette autorisation est désactivée par défaut.",
+        "data": {
+          "learn_contacts": "Apprendre les contacts automatiquement",
+          "learn_repeaters": "Apprendre les répéteurs automatiquement",
+          "learn_favorites": "Enregistrer les nouveaux contacts comme favoris",
+          "learn_allowed": "Autoriser automatiquement les actions HA des nouveaux contacts"
+        }
+      },
       "contact_add": {
         "title": "Ajouter un contact",
         "data": {
           "public_key": "Clé publique (64 caractères hexadécimaux)",
           "name": "Nom",
           "type": "Type d’appareil",
-          "favorite": "Favori"
+          "favorite": "Favori",
+          "allowed": "Autoriser les actions HA"
         }
       },
       "contact_remove": {
@@ -112,7 +123,8 @@
         "menu_options": {
           "contact_add": "Ajouter un contact",
           "contact_remove": "Supprimer un contact",
-          "favorites": "Favoris de l’appareil"
+          "favorites": "Favoris de l’appareil",
+          "contact_learning": "Apprentissage automatique"
         }
       },
       "channels": {
@@ -214,6 +226,21 @@
       }
     },
     "switch": {
+      "favorite_contact": {
+        "name": "Favori : {contact}"
+      },
+      "learn_contacts": {
+        "name": "Apprendre les contacts automatiquement"
+      },
+      "learn_repeaters": {
+        "name": "Apprendre les répéteurs automatiquement"
+      },
+      "learn_favorites": {
+        "name": "Enregistrer les nouveaux contacts comme favoris"
+      },
+      "learn_allowed": {
+        "name": "Autoriser automatiquement les actions HA des nouveaux contacts"
+      },
       "allowed_contact": {
         "name": "Autorisé : {contact}"
       },

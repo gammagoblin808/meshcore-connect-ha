@@ -9,7 +9,8 @@ from .client import connect
 from .const import CONF_ALLOWED, CONF_WORDS, DOMAIN, CONF_MODE, MODE_GATEWAY_COMPANION
 from .gateway_state import GatewayState
 from .gateway_transport import GatewayAuthError, GatewayProtocolError
-from .message import allowed_keys
+from .message import allowed_keys, public_key
+from .contact_learning import LEARNING_KEYS, learning_options
 from .words import configured_words, validate_word, word_options
 
 
@@ -130,6 +131,7 @@ class MeshCoreOptionsFlow(config_entries.OptionsFlow):
     def __init__(self):
         self._editing_word = None
         self._channels = []
+        self._favorite_keys = None
 
     @property
     def hub(self):
@@ -155,7 +157,16 @@ class MeshCoreOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_contacts(self, user_input=None):
         return self.async_show_menu(step_id="contacts", menu_options=[
-            "contact_add", "contact_remove", "favorites"])
+            "contact_add", "contact_remove", "favorites", "contact_learning"])
+
+    async def async_step_contact_learning(self, user_input=None):
+        if user_input is not None:
+            return self.save(**{key: bool(user_input.get(key, False)) for key in LEARNING_KEYS})
+        defaults = learning_options(self.config_entry.options,
+                                    self.config_entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION)
+        return self.async_show_form(step_id="contact_learning", data_schema=vol.Schema({
+            vol.Optional(key, default=defaults[key]): bool for key in LEARNING_KEYS
+        }))
 
     async def async_step_channels(self, user_input=None):
         return self.async_show_menu(step_id="channels", menu_options=["channel_add", "channel_remove"])
@@ -189,11 +200,12 @@ class MeshCoreOptionsFlow(config_entries.OptionsFlow):
         errors = {}
         try:
             if user_input is not None:
-                await self.hub.set_favorites(user_input.get("contacts", []))
+                await self.hub.set_favorites(user_input.get("contacts", []), known_keys=self._favorite_keys)
                 return self.save()
             contacts = await self.hub.refresh_contacts()
         except (OSError, ConnectionError, ValueError):
             return self.async_abort(reason="device_error")
+        self._favorite_keys = {c["public_key"] for c in contacts}
         return self.async_show_form(step_id="favorites", data_schema=vol.Schema({
             vol.Optional("contacts", default=[c["public_key"] for c in contacts if c["favorite"]]):
                 selection({c["public_key"]: f'{c["name"]} ({c["public_key"][:12]})' for c in contacts}, True),
@@ -205,6 +217,8 @@ class MeshCoreOptionsFlow(config_entries.OptionsFlow):
             try:
                 await self.hub.add_contact(user_input["public_key"], user_input["name"],
                                            int(user_input["type"]), user_input.get("favorite", False))
+                if user_input.get("allowed", False):
+                    return self.save(**{CONF_ALLOWED: sorted(set(self.keys()) | {public_key(user_input["public_key"])})})
                 return self.save()
             except (OSError, ConnectionError, ValueError):
                 errors["base"] = "device_error"
@@ -213,6 +227,7 @@ class MeshCoreOptionsFlow(config_entries.OptionsFlow):
             vol.Required("type", default="1"): selector.SelectSelector({
                 "options": ["1", "2", "3"], "translation_key": "contact_type"}),
             vol.Optional("favorite", default=False): bool,
+            vol.Optional("allowed", default=False): bool,
         })
         return self.async_show_form(step_id="contact_add", data_schema=
             self.add_suggested_values_to_schema(schema, user_input), errors=errors)

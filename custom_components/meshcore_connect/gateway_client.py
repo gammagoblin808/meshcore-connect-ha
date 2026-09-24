@@ -15,6 +15,7 @@ from .gateway_packets import (Packet, acknowledgement, advertisement, decrypt,
 from .gateway_state import validate_contact
 from .gateway_transport import GatewayTransport
 from .message import public_key
+from .contact_learning import learning_options, accepts_contact, LEARN_FAVORITES
 
 
 def event(kind, payload=None):
@@ -38,6 +39,7 @@ class GatewayClient:
         self._ack_at = {}
         self._stats = {"recv": 0, "sent": 0, "recv_errors": 0}
         self._radio = {}
+        self.learning = learning_options(data, gateway=True)
 
     @property
     def contacts(self):
@@ -112,14 +114,19 @@ class GatewayClient:
                 return
             old = self.contacts.get(key)
             if old:
+                # Advertisements must never rename or replace a saved favorite.
+                if old.get("flags", 0) & 1:
+                    return
                 if contact["last_advert"] <= old.get("last_advert", 0):
                     return
                 contact.update({k: old[k] for k in ("flags", "out_path", "out_path_len", "out_path_hash_mode")})
-            elif len(self.contacts) >= 350:
+            elif len(self.contacts) >= 350 or not accepts_contact(contact, self.learning):
                 return
+            elif self.learning[LEARN_FAVORITES]:
+                contact["flags"] = contact.get("flags", 0) | 1
             self.contacts[key] = validate_contact(contact, self.state.signing_key)
             await self.state.save()
-            await self._emit(EventType.NEW_CONTACT, contact)
+            await self._emit(EventType.NEW_CONTACT, {**contact, "newly_learned": old is None})
         elif packet.kind == 3 and len(packet.payload) in (4, 5, 6):
             await self._emit(EventType.ACK, {"code": packet.payload[:4].hex()})
         elif packet.kind in (2, 8):

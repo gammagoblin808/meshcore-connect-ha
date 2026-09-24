@@ -1,5 +1,6 @@
 import asyncio
 from collections import OrderedDict
+from copy import deepcopy
 from datetime import timedelta
 import logging
 import time
@@ -18,6 +19,8 @@ from .message import public_key, trusted_message
 from .words import configured_words, validate_word, word_options
 from .action_response import ActionResponses
 from .status_query import StatusQueries
+from .contact_learning import (LEARNING_KEYS, LEARN_ALLOWED, LEARN_FAVORITES,
+                               accepts_contact, learning_options)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +45,12 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         self.messages_ready = False
         self.action_responses = ActionResponses(self)
         self.status_queries = StatusQueries(self)
+        self.discovered = OrderedDict()
+        self._learning_applied = None
+
+    @property
+    def learning(self):
+        return learning_options(self.entry.options, self.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION)
 
     @property
     def words(self):
@@ -52,6 +61,8 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         return self.entry.options.get(CONF_ALLOWED, self.entry.data.get(CONF_ALLOWED, []))
 
     def options_updated(self):
+        if self.client and getattr(self.client, "is_gateway", False) is True:
+            self.client.learning = self.learning
         self.async_update_listeners()
 
     def set_word(self, slot, word):
@@ -103,8 +114,55 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
             self.hass.async_create_task(self.async_request_refresh())
 
     async def _contacts_changed(self, event):
+        contact = event.payload
+        if isinstance(contact, dict) and isinstance(contact.get("public_key"), str):
+            key = contact["public_key"]
+            discovered = deepcopy(contact)
+            if self.discovered.get(key, {}).get("newly_learned"):
+                discovered["newly_learned"] = True
+            self.discovered[key] = discovered
+            if len(self.discovered) > 350:
+                self.discovered.popitem(last=False)
         self.contacts_at = 0
         await self._wake(event)
+
+    async def _learn_contacts(self):
+        gateway = self.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION
+        policy = self.learning
+        if not gateway and any(key in self.entry.options for key in LEARNING_KEYS):
+            # Let HA select discoveries. Firmware auto-eviction must not remove favorites.
+            if self._learning_applied is not self.client:
+                checked(await self.client.commands.set_manual_add_contacts(True), EventType.OK)
+                self._learning_applied = self.client
+        # Bound writes per refresh so discovery cannot starve messaging or UI changes.
+        for _ in range(8):
+            if not self.discovered:
+                break
+            key, candidate = self.discovered.popitem(last=False)
+            if not accepts_contact(candidate, policy):
+                continue
+            try:
+                key = public_key(key)
+            except ValueError:
+                continue
+            if gateway:
+                if not candidate.get("newly_learned") or key not in self.contact_snapshot():
+                    continue
+            else:
+                if key in self.contact_snapshot():
+                    continue
+                info = checked(await self.client.commands.send_device_query(), EventType.DEVICE_INFO)
+                capacity = info.get("max_contacts")
+                if type(capacity) is not int or len(self.contact_snapshot()) >= capacity:
+                    continue  # Never evict contacts to make room.
+                candidate.pop("newly_learned", None)
+                candidate["flags"] = int(policy[LEARN_FAVORITES])
+                checked(await self.client.commands.add_contact(candidate), EventType.OK)
+                await self._read_contacts()
+            if policy[LEARN_ALLOWED] and key in self.contact_snapshot():
+                self.set_allowed(key, True)
+        if self.discovered and not self.stopping:
+            self.hass.async_create_task(self.async_request_refresh())
 
     async def _connect(self):
         if self.entry.data.get(CONF_MODE) != MODE_GATEWAY_COMPANION:
@@ -118,7 +176,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
         except (ValueError, KeyError) as error:
             raise ConfigEntryError("HA companion identity storage is missing or invalid; restore the HA backup") from error
         try:
-            return await connect(self.entry.data, gateway_state=state)
+            return await connect({**self.entry.data, **self.learning}, gateway_state=state)
         except GatewayAuthError as error:
             raise ConfigEntryAuthFailed("Gateway service key rejected") from error
 
@@ -132,8 +190,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
                     self.client = await self._connect()
                     # Subscribe before requesting contacts to avoid fast-response races.
                     self.subscriptions.append(self.client.subscribe(EventType.MESSAGES_WAITING, self._wake))
-                    if self.entry.data.get(CONF_MODE) == MODE_GATEWAY_COMPANION:
-                        self.subscriptions.append(self.client.subscribe(EventType.NEW_CONTACT, self._contacts_changed))
+                    self.subscriptions.append(self.client.subscribe(EventType.NEW_CONTACT, self._contacts_changed))
                     await self._read_contacts()
                     self.battery_at = 0
                     self.stats_at = 0
@@ -146,6 +203,7 @@ class MeshCoreCoordinator(CompanionManagement, DataUpdateCoordinator):
                     self.battery_at = time.monotonic()
                 if time.monotonic() - self.contacts_at >= 300:
                     await self._read_contacts()
+                await self._learn_contacts()
                 if not self.stats_at or time.monotonic() - self.stats_at >= 60:
                     await self._read_stats()
                 if not self.messages_ready:

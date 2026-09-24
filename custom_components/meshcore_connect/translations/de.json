@@ -73,13 +73,24 @@
           "contacts": "Favoriten"
         }
       },
+      "contact_learning": {
+        "title": "Automatisches Lernen",
+        "description": "Nur neue Kontakte werden übernommen. Bestehende Favoriten werden nicht überschrieben oder verdrängt. Achtung: Automatisch erlaubte Kontakte dürfen HA-Aktionen auslösen. Diese Freigabe ist standardmäßig aus.",
+        "data": {
+          "learn_contacts": "Kontakte automatisch lernen",
+          "learn_repeaters": "Repeater automatisch lernen",
+          "learn_favorites": "Neue Kontakte als Favoriten speichern",
+          "learn_allowed": "Neue Kontakte automatisch für HA-Aktionen erlauben"
+        }
+      },
       "contact_add": {
         "title": "Kontakt hinzufügen",
         "data": {
           "public_key": "Öffentlicher Schlüssel (64 Hexadezimalzeichen)",
           "name": "Name",
           "type": "Gerätetyp",
-          "favorite": "Favorit"
+          "favorite": "Favorit",
+          "allowed": "Für HA-Aktionen erlauben"
         }
       },
       "contact_remove": {
@@ -112,7 +123,8 @@
         "menu_options": {
           "contact_add": "Kontakt hinzufügen",
           "contact_remove": "Kontakt entfernen",
-          "favorites": "Gerätefavoriten"
+          "favorites": "Gerätefavoriten",
+          "contact_learning": "Automatisches Lernen"
         }
       },
       "channels": {
@@ -214,6 +226,21 @@
       }
     },
     "switch": {
+      "favorite_contact": {
+        "name": "Favorit: {contact}"
+      },
+      "learn_contacts": {
+        "name": "Kontakte automatisch lernen"
+      },
+      "learn_repeaters": {
+        "name": "Repeater automatisch lernen"
+      },
+      "learn_favorites": {
+        "name": "Neue Kontakte als Favoriten speichern"
+      },
+      "learn_allowed": {
+        "name": "Neue Kontakte automatisch für HA-Aktionen erlauben"
+      },
       "allowed_contact": {
         "name": "Erlaubt: {contact}"
       },

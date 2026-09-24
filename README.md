@@ -114,8 +114,10 @@ implicitly imported or overwritten.
 
 Use only a trusted, isolated LAN. PSK challenge authentication does not encrypt
 or authenticate the subsequent gateway stream. Do not expose these ports to the
-Internet. First-time gateway admin provisioning remains a firmware prerequisite;
-HA cannot unlock a disabled port or provision an unset admin key.
+Internet. Configure and enable the service port in the gateway web interface
+before connecting HA. HA cannot unlock a disabled port or change the admin key.
+Gateway firmware 26.09.60 provides a login page and an authenticated admin-password
+setting; unconfigured gateways start with `admin`, while existing keys stay valid.
 
 ## Configure in Home Assistant
 
@@ -139,6 +141,31 @@ Connect > Configure**. No contact keys are required during initial connection.
 
 In raw-gateway mode these same controls manage the local HA companion store;
 channel keys and contacts are not written to the RAK.
+
+### Contact Learning
+
+Under **Configure > Device contacts > Add contact**, enter the full public key,
+name and device type. **Favorite** and **Allow HA actions** are independent options.
+Existing contacts cannot be overwritten by this operation.
+
+**Device contacts > Automatic learning** and the device page expose separate
+switches for learning companions/room servers, learning repeaters, marking new
+contacts as favorites, and permitting HA actions for newly learned contacts.
+Automatic action permission is **off by default**: enabling it trusts newly
+discovered senders to trigger configured HA actions. Favoriting alone grants no
+permission. Changing a learning option does not modify existing permissions.
+
+The raw-gateway companion validates signed advertisements before learning and
+saves contacts in HA storage. Advertisements never replace saved favorites, and
+a full contact list does not evict any contact. A normal USB/TCP companion uses
+manual-add firmware mode once learning is configured; HA then imports selected
+discoveries into free slots without changing telemetry or location settings.
+HA must be connected for this managed learning. Existing firmware-managed
+learning is left unchanged until an HA learning option is configured.
+
+Each contact has separate **Favorite** and **Allowed** switches on the device
+page. Explicit changes affect only that contact. A stale favorites dialog does
+not clear favorites that were learned after the dialog was opened.
 
 Each save finishes the configuration dialog. Reopen **Configure** for another
 operation. Device operations require an active gateway connection and a firmware

@@ -73,13 +73,24 @@
           "contacts": "Favorites"
         }
       },
+      "contact_learning": {
+        "title": "Automatic learning",
+        "description": "Only new contacts are added. Existing favorites are never overwritten or evicted. Warning: automatically allowed contacts can trigger HA actions. This permission is off by default.",
+        "data": {
+          "learn_contacts": "Automatically learn contacts",
+          "learn_repeaters": "Automatically learn repeaters",
+          "learn_favorites": "Save new contacts as favorites",
+          "learn_allowed": "Automatically allow HA actions for new contacts"
+        }
+      },
       "contact_add": {
         "title": "Add contact",
         "data": {
           "public_key": "Public key (64 hexadecimal characters)",
           "name": "Name",
           "type": "Device type",
-          "favorite": "Favorite"
+          "favorite": "Favorite",
+          "allowed": "Allow HA actions"
         }
       },
       "contact_remove": {
@@ -112,7 +123,8 @@
         "menu_options": {
           "contact_add": "Add contact",
           "contact_remove": "Remove contact",
-          "favorites": "Device favorites"
+          "favorites": "Device favorites",
+          "contact_learning": "Automatic learning"
         }
       },
       "channels": {
@@ -214,6 +226,21 @@
       }
     },
     "switch": {
+      "favorite_contact": {
+        "name": "Favorite: {contact}"
+      },
+      "learn_contacts": {
+        "name": "Automatically learn contacts"
+      },
+      "learn_repeaters": {
+        "name": "Automatically learn repeaters"
+      },
+      "learn_favorites": {
+        "name": "Save new contacts as favorites"
+      },
+      "learn_allowed": {
+        "name": "Automatically allow HA actions for new contacts"
+      },
       "allowed_contact": {
         "name": "Allowed: {contact}"
       },

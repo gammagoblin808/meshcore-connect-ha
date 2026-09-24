@@ -74,7 +74,7 @@ class CompanionManagement:
             self.state["contacts"] = self.contact_list()
             self.async_set_updated_data(self.state.copy())
 
-    async def set_favorites(self, keys):
+    async def set_favorites(self, keys, known_keys=None):
         keys = {public_key(key) for key in keys}
         async with self.lock:
             self.require_client()
@@ -83,6 +83,8 @@ class CompanionManagement:
                 raise ValueError("Unknown contact")
             try:
                 for key, contact in self.contact_snapshot().items():
+                    if known_keys is not None and key not in known_keys:
+                        continue  # A stale selection cannot clear newly learned favorites.
                     flags = (contact.get("flags", 0) & ~1) | int(key in keys)
                     if flags != contact.get("flags", 0):
                         # The library mutates its argument before receiving an ACK.
@@ -91,6 +93,19 @@ class CompanionManagement:
             finally:
                 await self._read_contacts()
                 self.async_set_updated_data(self.state.copy())
+
+    async def set_favorite(self, key, enabled):
+        key = public_key(key)
+        async with self.lock:
+            self.require_client()
+            await self._read_contacts()
+            contact = self.contact_snapshot().get(key)
+            if contact is None:
+                raise ValueError("Contact no longer exists")
+            flags = (contact.get("flags", 0) & ~1) | int(enabled)
+            checked(await self.client.commands.change_contact_flags(deepcopy(contact), flags), EventType.OK)
+            await self._read_contacts()
+            self.async_set_updated_data(self.state.copy())
 
     async def _read_channels(self):
         info = checked(await self.client.commands.send_device_query(), EventType.DEVICE_INFO)
