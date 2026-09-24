@@ -160,7 +160,7 @@ async def async_setup_panel(hass):
         await panel_custom.async_register_panel(
             hass, frontend_url_path=PANEL, webcomponent_name="meshcore-connect-panel",
             sidebar_title="MeshCore Connect", sidebar_icon="mdi:radio-handheld",
-            module_url=BASE + "/panel.js?v=26.09.64", require_admin=True)
+            module_url=BASE + "/panel.js?v=26.09.66", require_admin=True)
         state["visible"] = True
 
 
